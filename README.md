@@ -17,7 +17,7 @@ storm-yarn-master
 =================
 storm on yarn application master
 
-This is to provide basic storm on YARN functionallity.  It is still a work
+This is to provide basic storm on YARN functionality.  It is still a work
 in progress.
 
 
@@ -58,23 +58,23 @@ only one copy in the distributed cache ever.
 
 ## Run:
 
-the yarn-storm command provides a way to lauch a storm cluster.  In the future
+The yarn-storm command provides a way to launch a storm cluster.  In the future
 it is intended to also provide ways to manage the cluster.
 
-to launch a cluster you can run
+To launch a cluster you can run
 
     yarn-storm launch
 
 It will launch a cluster using what is currently in your storm.yaml.
 
-for a full list of commands and options you can run
+For a full list of commands and options you can run
 
     yarn-storm help
 
 There are a number of new config options to configure the storm AM.
 
 master.initial-num-supervisors is the number of supervisors to launch with storm.
-master.container.size-mb is the size of the continer to request.
+master.container.size-mb is the size of the container to request.
 
 These are typically stored in a master.yaml instead of a storm.yaml file.
 
@@ -83,8 +83,8 @@ These are typically stored in a master.yaml instead of a storm.yaml file.
 The is no failover when nimbus goes down. Still working on it.
 
 There is no easy way to get the normal storm client to connect to the 
-nimbus server that was just laucnhed.  (you need to find the host and port
-and then configure it automatically on the command line)
+nimbus server that was just launched.  (You need to find the host and port
+and then configure it automatically on the command line.)
 
 The default UI port is the same as the default MR shuffle port.  You
 probably want to change that to avoid collisions.
