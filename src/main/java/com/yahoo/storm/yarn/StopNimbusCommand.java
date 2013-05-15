@@ -34,8 +34,8 @@ public class StopNimbusCommand implements ClientCommand {
   }
 
   @Override
-    public void process(CommandLine cl,
-            @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
+  public void process(CommandLine cl,
+      @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
     String appId = cl.getOptionValue("appId");
     if(appId == null) {
       throw new IllegalArgumentException("-appId is required");

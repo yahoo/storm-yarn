@@ -87,7 +87,7 @@ public class StormOnYarn {
   }
   
   @SuppressWarnings("unchecked")
-private synchronized StormMaster.Client getClient() throws YarnRemoteException {
+  private synchronized StormMaster.Client getClient() throws YarnRemoteException {
     if (_client == null) {
       //TODO need a way to force this to reconnect in case of an error
       ApplicationReport report = _yarn.getApplicationReport(_appId);
