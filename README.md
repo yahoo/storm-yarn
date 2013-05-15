@@ -32,11 +32,11 @@ in progress.
 
 To run the tests you need an instance of storm installed and reachable on your PATH.
 
-mvn package
+    mvn package
 
 If you want to skip the tests you can run
 
-mvn pacakge -DskipTests
+    mvn pacakge -DskipTests
 
 ## Deploy:
 
@@ -45,13 +45,13 @@ You need to install a version of storm on the hadoop gateway.
 You also need to place a corresponding storm.zip file in HDFS so it can be
 shipped to all of the nodes through the distributed cache at
 
-/lib/storm/<storm-version>/storm.zip
+/lib/storm/&lt;storm-version&gt;/storm.zip
 
 If you are running storm using zeromq and jzmq you need to augment the standard
 storm.zip file the needed .so files. This can be done with the not ideally
 named create-tarball.sh script
 
-create-tarball.sh storm.zip
+    create-tarball.sh storm.zip
 
 Ideally the storm.zip file is a world readable file installed by ops so there is
 only one copy in the distributed cache ever.
@@ -63,13 +63,13 @@ it is intended to also provide ways to manage the cluster.
 
 to launch a cluster you can run
 
-yarn-storm launch
+    yarn-storm launch
 
 It will launch a cluster using what is currently in your storm.yaml.
 
 for a full list of commands and options you can run
 
-yarn-storm help
+    yarn-storm help
 
 There are a number of new config options to configure the storm AM.
 
