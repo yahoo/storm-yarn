@@ -118,10 +118,6 @@
                     <fork>true</fork>
                     <source>1.7</source>
                     <target>1.7</target>
-                    <compilerArguments>
-                        <Xlint />
-                        <Xmaxwarns>9999</Xmaxwarns>
-                    </compilerArguments>
                 </configuration>
             </plugin>
             <plugin>
