@@ -43,7 +43,8 @@ public class Client {
      * @param stormConf the storm configuration to use
      * @throws Exception on any error
      */
-    public void process(CommandLine cl, Map stormConf) throws Exception;
+    public void process(CommandLine cl,
+            @SuppressWarnings("rawtypes") Map stormConf) throws Exception;
   }
   
   public static class HelpCommand implements ClientCommand {
@@ -57,8 +58,10 @@ public class Client {
       return new Options();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
-    public void process(CommandLine cl, Map ignored) throws Exception {
+    public void process(CommandLine cl,
+            @SuppressWarnings("rawtypes") Map ignored) throws Exception {
       printHelpFor(cl.getArgList());
     }
     
@@ -83,6 +86,7 @@ public class Client {
    * @param args the command line arguments
    * @throws Exception  
    */
+  @SuppressWarnings("unchecked")
   public static void main(String[] args) throws Exception {
     HashMap<String, ClientCommand> commands = new HashMap<String, ClientCommand>();
     HelpCommand help = new HelpCommand(commands);
@@ -112,6 +116,7 @@ public class Client {
     if(cl.hasOption("help")) {
       help.printHelpFor(Arrays.asList(commandName));
     } else {
+      @SuppressWarnings("rawtypes")
       Map storm_conf = Utils.readStormConfig();
       storm_conf.putAll(Config.readStormConfig());
       //TODO need a way to override this on the command line
