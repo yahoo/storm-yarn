@@ -31,6 +31,7 @@ public class Config {
     final public static String MASTER_CONTAINER_PRIORITY = "master.container.priority";
     final public static String MASTER_HEARTBEAT_INTERVAL_MILLIS = "master.heartbeat.interval.millis";
 
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     static public Map readStormConfig() {
         Map conf = Utils.findAndReadConfigFile(Config.MASTER_DEFAULTS_CONFIG);
         conf.putAll(Utils.readStormConfig());

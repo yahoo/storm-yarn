@@ -56,14 +56,16 @@ public class StormOnYarn {
   private YarnClient _yarn;
   private YarnConfiguration _hadoopConf;
   private ApplicationId _appId;
+  @SuppressWarnings("rawtypes")
   private Map _stormConf;
   private MasterClient _client = null;
   
-  private StormOnYarn(Map stormConf) {
+  private StormOnYarn(@SuppressWarnings("rawtypes") Map stormConf) {
     this(null, stormConf);
   }
   
-  private StormOnYarn(ApplicationId appId, Map stormConf) {
+  private StormOnYarn(ApplicationId appId,
+      @SuppressWarnings("rawtypes") Map stormConf) {
     _stormConf = stormConf;
     _appId = appId;
     _hadoopConf = new YarnConfiguration();
@@ -84,6 +86,7 @@ public class StormOnYarn {
     return _appId;
   }
   
+  @SuppressWarnings("unchecked")
   private synchronized StormMaster.Client getClient() throws YarnRemoteException {
     if (_client == null) {
       //TODO need a way to force this to reconnect in case of an error
@@ -225,7 +228,7 @@ public class StormOnYarn {
    * @return a jar file that contains the class, or null.
    * @throws IOException on any error
    */
-  public static String findContainingJar(Class my_class) throws IOException {
+  public static String findContainingJar(Class<MasterServer> my_class) throws IOException {
     ClassLoader loader = my_class.getClassLoader();
     String class_file = my_class.getName().replaceAll("\\.", "/") + ".class";
     for(Enumeration<URL> itr = loader.getResources(class_file);
@@ -251,13 +254,14 @@ public class StormOnYarn {
   }
   
   public static StormOnYarn launchApplication(String appName, String queue, 
-      int amMB, Map stormConf) throws Exception {
+      int amMB, @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
     StormOnYarn storm = new StormOnYarn(stormConf);
     storm.launchApp(appName, queue, amMB);
     return storm;
   }
   
-  public static StormOnYarn attachToApp(String appId, Map stormConf) {
+  public static StormOnYarn attachToApp(String appId,
+      @SuppressWarnings("rawtypes") Map stormConf) {
     return new StormOnYarn(ConverterUtils.toApplicationId(appId), stormConf);
   }
 }
