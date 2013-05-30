@@ -16,7 +16,11 @@
 
 package com.yahoo.storm.yarn;
 
+import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.Map;
+
+import org.yaml.snakeyaml.Yaml;
 
 import backtype.storm.utils.Utils;
 
@@ -30,13 +34,36 @@ public class Config {
     final public static String MASTER_NUM_SUPERVISORS = "master.initial-num-supervisors";
     final public static String MASTER_CONTAINER_PRIORITY = "master.container.priority";
     final public static String MASTER_HEARTBEAT_INTERVAL_MILLIS = "master.heartbeat.interval.millis";
-
+    
     @SuppressWarnings({ "rawtypes", "unchecked" })
-    static public Map readStormConfig() {
+    static Map readStormConfig(String stormYarnConfigPath) {
+        //default configurations
+        Map ret = Utils.readDefaultConfig();
         Map conf = Utils.findAndReadConfigFile(Config.MASTER_DEFAULTS_CONFIG);
-        conf.putAll(Utils.readStormConfig());
-        Map master_conf = Utils.findAndReadConfigFile(Config.MASTER_CONFIG, false);
-        if (master_conf != null) conf.putAll(master_conf);
-        return conf;
+        ret.putAll(conf);
+        
+        //configuration file per command parameter 
+        if (stormYarnConfigPath == null) {
+            Map master_conf = Utils.findAndReadConfigFile(Config.MASTER_CONFIG, false);
+            ret.putAll(master_conf);
+        }
+        else {
+            try {
+                Yaml yaml = new Yaml();
+                FileInputStream is = new FileInputStream(stormYarnConfigPath);
+                Map storm_yarn_config = (Map) yaml.load(is);
+                if(storm_yarn_config!=null)
+                    ret.putAll(storm_yarn_config);
+                is.close();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        //other configuration settings via CLS opts
+        ret.putAll(Utils.readCommandLineOpts());
+
+        return ret;
     }
+
 }
