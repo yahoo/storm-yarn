@@ -42,6 +42,10 @@ public class Config {
         Map conf = Utils.findAndReadConfigFile(Config.MASTER_DEFAULTS_CONFIG);
         ret.putAll(conf);
         
+        //standard storm configuration
+        Map storm_conf = Utils.readStormConfig();
+        ret.putAll(storm_conf);
+
         //configuration file per command parameter 
         if (stormYarnConfigPath == null) {
             Map master_conf = Utils.findAndReadConfigFile(Config.MASTER_CONFIG, false);

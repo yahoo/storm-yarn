@@ -16,10 +16,6 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
@@ -30,9 +26,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
-import org.yaml.snakeyaml.Yaml;
-
-import backtype.storm.utils.Utils;
 
 public class Client {
 

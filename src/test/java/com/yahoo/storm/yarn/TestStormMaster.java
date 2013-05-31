@@ -38,7 +38,7 @@ public class TestStormMaster {
     @BeforeClass
     public static void setup() throws InterruptedException, IOException {
         //simple configuration
-        final Map storm_conf = Config.readStormConfig();
+        final Map storm_conf = Config.readStormConfig("src/main/resources/master_defaults.yaml");
         final YarnConfiguration hadoopConf = new YarnConfiguration();
         ApplicationAttemptId appAttemptId = Records.newRecord(ApplicationAttemptId.class);
 
