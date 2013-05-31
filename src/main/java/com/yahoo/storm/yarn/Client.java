@@ -16,120 +16,111 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.net.URL;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
-import org.yaml.snakeyaml.Yaml;
 
 import backtype.storm.utils.Utils;
 
 public class Client {
 
-    public static interface ClientCommand {
-
-        /**
-         * @return the options this client will process.
-         */
-        public Options getOpts();
-
-        /**
-         * Do the processing
-         * @param cl the arguments to process
-         * @param stormConf the storm configuration to use
-         * @throws Exception on any error
-         */
-        public void process(CommandLine cl,
-                @SuppressWarnings("rawtypes") Map stormConf) throws Exception;
-    }
-
-    public static class HelpCommand implements ClientCommand {
-        HashMap<String, ClientCommand> _commands;
-        public HelpCommand(HashMap<String, ClientCommand> commands) {
-            _commands = commands;
-        }
-
-        @Override
-        public Options getOpts() {
-            return new Options();
-        }
-
-        @SuppressWarnings("unchecked")
-        @Override
-        public void process(CommandLine cl,
-                @SuppressWarnings("rawtypes") Map ignored) throws Exception {
-            printHelpFor(cl.getArgList());
-        }
-
-        public void printHelpFor(Collection<String> args) {
-            if(args == null || args.size() < 1) {
-                args = _commands.keySet();
-            }
-            HelpFormatter f = new HelpFormatter();
-            for(String command: args) {
-                ClientCommand c = _commands.get(command);
-                if (c != null) {
-                    f.printHelp(command, c.getOpts());
-                } else {
-                    System.err.println("ERROR: " + c + " is not a supported command.");
-                    //TODO make this exit with an error at some point
-                }
-            }
-        }
-    }
-
+  public static interface ClientCommand {
+    
     /**
-     * @param args the command line arguments
-     * @throws Exception  
+     * @return the options this client will process.
      */
-    @SuppressWarnings("unchecked")
-    public static void main(String[] args) throws Exception {
-        HashMap<String, ClientCommand> commands = new HashMap<String, ClientCommand>();
-        HelpCommand help = new HelpCommand(commands);
-        commands.put("help", help);
-        commands.put("launch", new LaunchCommand());
-        commands.put("stopNimbus", new StopNimbusCommand());
-        String commandName = null;
-        String[] commandArgs = null;
-        if (args.length < 1) {
-            commandName = "help";
-            commandArgs = new String[0];
-        } else {
-            commandName = args[0];
-            commandArgs = Arrays.copyOfRange(args, 1, args.length);
-        }
-        ClientCommand command = commands.get(commandName);
-        if(command == null) {
-            System.err.println("ERROR: " + commandName + " is not a supported command.");
-            help.printHelpFor(null);
-            System.exit(1);
-        }
-        Options opts = command.getOpts();
-        if(!opts.hasOption("h")) {
-            opts.addOption("h", "help", false, "print out a help message");
-        }
-        CommandLine cl = new GnuParser().parse(command.getOpts(), commandArgs);
-        if(cl.hasOption("help")) {
-            help.printHelpFor(Arrays.asList(commandName));
-        } else {
-            @SuppressWarnings("rawtypes")
-            List remaining_args = cl.getArgList();
-            String config_file = null;
-            if (!remaining_args.isEmpty())
-                config_file = (String)remaining_args.get(0);
-            Map storm_conf = Config.readStormConfig(config_file);
-            //TODO need a way to override this on the command line
-            command.process(cl, storm_conf);
-        }
+    public Options getOpts();
+    
+    /**
+     * Do the processing
+     * @param cl the arguments to process
+     * @param stormConf the storm configuration to use
+     * @throws Exception on any error
+     */
+    public void process(CommandLine cl,
+            @SuppressWarnings("rawtypes") Map stormConf) throws Exception;
+  }
+  
+  public static class HelpCommand implements ClientCommand {
+    HashMap<String, ClientCommand> _commands;
+    public HelpCommand(HashMap<String, ClientCommand> commands) {
+      _commands = commands;
     }
+
+    @Override
+    public Options getOpts() {
+      return new Options();
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
+    public void process(CommandLine cl,
+            @SuppressWarnings("rawtypes") Map ignored) throws Exception {
+      printHelpFor(cl.getArgList());
+    }
+    
+    public void printHelpFor(Collection<String> args) {
+      if(args == null || args.size() < 1) {
+        args = _commands.keySet();
+      }
+      HelpFormatter f = new HelpFormatter();
+      for(String command: args) {
+        ClientCommand c = _commands.get(command);
+        if (c != null) {
+          f.printHelp(command, c.getOpts());
+        } else {
+          System.err.println("ERROR: " + c + " is not a supported command.");
+          //TODO make this exit with an error at some point
+        }
+      }
+    }
+  }
+  
+  /**
+   * @param args the command line arguments
+   * @throws Exception  
+   */
+  @SuppressWarnings("unchecked")
+  public static void main(String[] args) throws Exception {
+    HashMap<String, ClientCommand> commands = new HashMap<String, ClientCommand>();
+    HelpCommand help = new HelpCommand(commands);
+    commands.put("help", help);
+    commands.put("launch", new LaunchCommand());
+    commands.put("stopNimbus", new StopNimbusCommand());
+    String commandName = null;
+    String[] commandArgs = null;
+    if (args.length < 1) {
+      commandName = "help";
+      commandArgs = new String[0];
+    } else {
+      commandName = args[0];
+      commandArgs = Arrays.copyOfRange(args, 1, args.length);
+    }
+    ClientCommand command = commands.get(commandName);
+    if(command == null) {
+      System.err.println("ERROR: " + commandName + " is not a supported command.");
+      help.printHelpFor(null);
+      System.exit(1);
+    }
+    Options opts = command.getOpts();
+    if(!opts.hasOption("h")) {
+      opts.addOption("h", "help", false, "print out a help message");
+    }
+    CommandLine cl = new GnuParser().parse(command.getOpts(), commandArgs);
+    if(cl.hasOption("help")) {
+      help.printHelpFor(Arrays.asList(commandName));
+    } else {
+      @SuppressWarnings("rawtypes")
+      Map storm_conf = Utils.readStormConfig();
+      storm_conf.putAll(Config.readStormConfig());
+      //TODO need a way to override this on the command line
+      command.process(cl, storm_conf);
+    }
+  }
 }

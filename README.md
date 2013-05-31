@@ -63,16 +63,20 @@ it is intended to also provide ways to manage the cluster.
 
 To launch a cluster you can run
 
-    storm-yarn launch [<storm-yarn config>]
+    yarn-storm launch
 
-storm-yarn configuration will be used to launch a Storm cluster.
-storm-yarn has a number of new config options to configure the storm AM.
-   * master.initial-num-supervisors is the number of supervisors to launch with storm.
-   * master.container.size-mb is the size of the container to request.
+It will launch a cluster using what is currently in your storm.yaml.
 
 For a full list of commands and options you can run
 
-    storm-yarn help
+    yarn-storm help
+
+There are a number of new config options to configure the storm AM.
+
+master.initial-num-supervisors is the number of supervisors to launch with storm.
+master.container.size-mb is the size of the container to request.
+
+These are typically stored in a master.yaml instead of a storm.yaml file.
 
 ## Known Issues:
 
