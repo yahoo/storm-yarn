@@ -133,7 +133,7 @@ public class MasterServer extends ThriftServer {
       }
       
       @SuppressWarnings("rawtypes")
-      Map storm_conf = Config.readStormConfig();
+      Map storm_conf = Config.readStormConfig(null);
       YarnConfiguration hadoopConf = new YarnConfiguration();
       
       StormAMRMClient client =
