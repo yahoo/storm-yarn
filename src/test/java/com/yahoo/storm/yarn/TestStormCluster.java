@@ -36,9 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import static org.mockito.Mockito.mock;
 
-import backtype.storm.utils.NimbusClient;
-import backtype.storm.utils.Utils;
-
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class TestStormCluster {
