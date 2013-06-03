@@ -36,9 +36,6 @@ import org.slf4j.LoggerFactory;
 
 import static org.mockito.Mockito.mock;
 
-import backtype.storm.utils.NimbusClient;
-import backtype.storm.utils.Utils;
-
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class TestStormCluster {
@@ -60,7 +57,7 @@ public class TestStormCluster {
 
         //simple configuration
         @SuppressWarnings("rawtypes")
-        final Map storm_conf = Config.readStormConfig();
+        final Map storm_conf = Config.readStormConfig(null);
         LOG.info("Storm server attaching to port: "+ storm_conf.get(Config.MASTER_THRIFT_PORT));
         StormAMRMClient mockClient = mock(StormAMRMClient.class);
         server = new MasterServer(storm_conf, mockClient);
@@ -203,7 +200,7 @@ public class TestStormCluster {
     public void testUI() throws Exception {
         LOG.info("Testing UI");
         @SuppressWarnings("rawtypes")
-        final Map storm_conf = Config.readStormConfig();
+        final Map storm_conf = Config.readStormConfig(null);
         LOG.info("Testing connection to UI ...");
         URL url = new URL("http://"+storm_conf.get("ui.host")+":"+storm_conf.get("ui.port")+"/");
         URLConnection con = url.openConnection();
