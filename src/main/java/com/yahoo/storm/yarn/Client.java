@@ -85,7 +85,7 @@ public class Client {
      * @param args the command line arguments
      * @throws Exception  
      */
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings("rawtypes")
     public static void main(String[] args) throws Exception {
         HashMap<String, ClientCommand> commands = new HashMap<String, ClientCommand>();
         HelpCommand help = new HelpCommand(commands);
@@ -115,13 +115,13 @@ public class Client {
         if(cl.hasOption("help")) {
             help.printHelpFor(Arrays.asList(commandName));
         } else {
-            @SuppressWarnings("rawtypes")
-            List remaining_args = cl.getArgList();
             String config_file = null;
-            if (!remaining_args.isEmpty())
-                config_file = (String)remaining_args.get(0);
+            if (commandName.equals("launch") || commandName.equals("stopNimbus")) {
+                List remaining_args = cl.getArgList();
+                if (remaining_args!=null)
+                    config_file = (String)remaining_args.get(0);
+            }
             Map storm_conf = Config.readStormConfig(config_file);
-            //TODO need a way to override this on the command line
             command.process(cl, storm_conf);
         }
     }

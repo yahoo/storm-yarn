@@ -35,6 +35,11 @@ public class Config {
     final public static String MASTER_CONTAINER_PRIORITY = "master.container.priority";
     final public static String MASTER_HEARTBEAT_INTERVAL_MILLIS = "master.heartbeat.interval.millis";
     
+    @SuppressWarnings("rawtypes")
+    static public Map readStormConfig() {
+        return readStormConfig(null);
+    }
+    
     @SuppressWarnings({ "rawtypes", "unchecked" })
     static Map readStormConfig(String stormYarnConfigPath) {
         //default configurations
