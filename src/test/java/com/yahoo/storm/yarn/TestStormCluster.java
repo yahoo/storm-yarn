@@ -179,6 +179,7 @@ public class TestStormCluster {
         if (client != null) {
             StormMaster.Client master_client = client.getClient();
             try {
+                master_client.stopSupervisors();
                 master_client.stopNimbus();
                 master_client.stopUI();
             } catch (TException e) {

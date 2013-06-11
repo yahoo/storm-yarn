@@ -50,6 +50,7 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.storm.yarn.Config;
 import backtype.storm.utils.Utils;
 
 class StormAMRMClient extends AMRMClientImpl {

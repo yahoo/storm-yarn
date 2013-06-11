@@ -27,6 +27,8 @@ import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 
+import com.yahoo.storm.yarn.generated.StormMaster;
+
 public class Client {
 
     public static interface ClientCommand {
@@ -85,13 +87,23 @@ public class Client {
      * @param args the command line arguments
      * @throws Exception  
      */
+    
     @SuppressWarnings("rawtypes")
     public static void main(String[] args) throws Exception {
         HashMap<String, ClientCommand> commands = new HashMap<String, ClientCommand>();
         HelpCommand help = new HelpCommand(commands);
         commands.put("help", help);
         commands.put("launch", new LaunchCommand());
-        commands.put("stopNimbus", new StopNimbusCommand());
+        commands.put("setStormConfig", new StormMasterCommand(StormMasterCommand.COMMAND.SET_STORM_CONFIG));
+        commands.put("getStormConfig", new StormMasterCommand(StormMasterCommand.COMMAND.GET_STORM_CONFIG));
+        commands.put("addSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.ADD_SUPERVISORS));
+        commands.put("startNimbus", new StormMasterCommand(StormMasterCommand.COMMAND.START_NIMBUS));
+        commands.put("stopNimbus", new StormMasterCommand(StormMasterCommand.COMMAND.START_NIMBUS));
+        commands.put("startUI", new StormMasterCommand(StormMasterCommand.COMMAND.START_UI));
+        commands.put("stopUI", new StormMasterCommand(StormMasterCommand.COMMAND.STOP_UI));
+        commands.put("startSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.START_SUPERVISORS));
+        commands.put("stopSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.STOP_SUPERVISORS));
+
         String commandName = null;
         String[] commandArgs = null;
         if (args.length < 1) {
@@ -116,9 +128,9 @@ public class Client {
             help.printHelpFor(Arrays.asList(commandName));
         } else {
             String config_file = null;
-            if (commandName.equals("launch") || commandName.equals("stopNimbus")) {
+            if (!commandName.equals("help")) {
                 List remaining_args = cl.getArgList();
-                if (remaining_args!=null)
+                if ((remaining_args!=null)  && !remaining_args.isEmpty())
                     config_file = (String)remaining_args.get(0);
             }
             Map storm_conf = Config.readStormConfig(config_file);

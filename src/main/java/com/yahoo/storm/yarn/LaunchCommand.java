@@ -20,10 +20,14 @@ import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.yahoo.storm.yarn.Client.ClientCommand;
 
 public class LaunchCommand implements ClientCommand {
+  private static final Logger LOG = LoggerFactory.getLogger(LaunchCommand.class);
+
   @Override
   public Options getOpts() {
     Options opts = new Options();
@@ -35,7 +39,7 @@ public class LaunchCommand implements ClientCommand {
   }
 
   @Override
-  public void process(CommandLine cl, Map stormConf) throws Exception {
+  public void process(CommandLine cl, @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
     String appName = cl.getOptionValue("appname", "Storm-on-Yarn");
     String queue = cl.getOptionValue("queue", "default");
     Integer amSize = (Integer) stormConf.get(Config.MASTER_SIZE_MB);
@@ -47,7 +51,7 @@ public class LaunchCommand implements ClientCommand {
     StormOnYarn storm = null;
     try {
       storm = StormOnYarn.launchApplication(appName, queue, amSize, stormConf);
-      System.err.println("Submitted application " + storm.getAppId());
+      LOG.info("Submitted application's ID:" + storm.getAppId());
     } finally {
       if (storm != null) {
         storm.stop();

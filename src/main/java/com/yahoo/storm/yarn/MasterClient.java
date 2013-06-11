@@ -17,20 +17,16 @@
 package com.yahoo.storm.yarn;
 
 import java.util.Map;
-
-import org.apache.thrift7.transport.TTransportException;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import backtype.storm.security.auth.ThriftClient;
 import backtype.storm.utils.Utils;
+import org.apache.thrift7.transport.TTransportException;
 
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class MasterClient extends ThriftClient {
     private StormMaster.Client _client;
-    private static final Logger LOG = LoggerFactory.getLogger(MasterClient.class);
 
+    @SuppressWarnings("rawtypes")
     public static MasterClient getConfiguredClient(Map conf) {
         try {
             String masterHost = (String) conf.get(Config.MASTER_HOST);
@@ -47,6 +43,7 @@ public class MasterClient extends ThriftClient {
         }
     }
 
+    @SuppressWarnings("rawtypes")
     public MasterClient(Map conf, String host, int port, Integer timeout) throws TTransportException {
         super(conf, host, port, timeout);
         _client = new StormMaster.Client(_protocol);

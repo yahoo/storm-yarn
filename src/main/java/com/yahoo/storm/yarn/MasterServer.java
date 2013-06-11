@@ -37,6 +37,7 @@ import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerStatus;
 import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.exceptions.YarnRemoteException;
 import org.apache.hadoop.yarn.service.Service;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
@@ -156,9 +157,9 @@ public class MasterServer extends ThriftServer {
         client.setMaxResource(resp.getMaximumResourceCapability());
         MasterServer server = new MasterServer(storm_conf, client);
         LOG.info("Starting HB thread");
-            initAndStartHeartbeat(client, launcherQueue,
-                    (Integer) storm_conf
-                            .get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS));
+        initAndStartHeartbeat(client, launcherQueue,
+                (Integer) storm_conf
+                .get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS));
         LOG.info("Starting launcher");
         initAndStartLauncher(client, launcherQueue);
         client.startAllSupervisors();
