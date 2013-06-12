@@ -64,8 +64,8 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         Util.rmNulls(_storm_conf);
 
         // TODO Handle supervisor config change.
-        stopNimbus();
         stopUI();
+        stopNimbus();
         startNimbus();
         startUI();
     }

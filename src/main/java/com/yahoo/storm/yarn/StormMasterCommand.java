@@ -16,24 +16,24 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.FileInputStream;
-import java.io.IOException;
 import java.io.PrintStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.yaml.snakeyaml.Yaml;
+import org.json.simple.JSONValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.yahoo.storm.yarn.Client.ClientCommand;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class StormMasterCommand implements ClientCommand {
+    private static final Logger LOG = LoggerFactory.getLogger(StormMasterCommand.class);
     enum COMMAND {
         GET_STORM_CONFIG,  
         SET_STORM_CONFIG,  
@@ -57,7 +57,7 @@ public class StormMasterCommand implements ClientCommand {
         //TODO can we make this required
         opts.addOption("appId", true, "(Required) The storm clusters app ID");
         
-        opts.addOption("config", true, "(Required for getStormConfig/setStormConfig) Output file for Storm configuration");
+        opts.addOption("output", true, "Output file for Storm configuration");
         opts.addOption("supversiors", true, "(Required for addSupervisors) The # of supervisors to be added");
         return opts;
     }
@@ -76,17 +76,15 @@ public class StormMasterCommand implements ClientCommand {
             StormMaster.Client client = storm.getClient();
             switch (cmd) {
             case GET_STORM_CONFIG:
-                String configOutput = cl.getOptionValue("config");
-                PrintStream out = new PrintStream(configOutput);
-                String conf_json = client.getStormConf();  
-                out.println(conf_json);
-                out.close();
+                String conf_str = client.getStormConf();                  
+                String output = cl.getOptionValue("output");
+                PrintStream os = (output!=null? new PrintStream(output) : System.out);
+                os.println(conf_str);
+                if (output != null) os.close();
                 break;
                 
             case SET_STORM_CONFIG:
-                String configInput = cl.getOptionValue("config");
-                byte[] encoded = Files.readAllBytes(Paths.get(configInput));
-                String storm_conf_str = StandardCharsets.UTF_8.decode(ByteBuffer.wrap(encoded)).toString();
+                String storm_conf_str = JSONValue.toJSONString(stormConf);
                 client.setStormConf(storm_conf_str);  
                 break;
 

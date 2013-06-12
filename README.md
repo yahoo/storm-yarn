@@ -36,7 +36,7 @@ To run the tests you need an instance of storm installed and reachable on your P
 
 If you want to skip the tests you can run
 
-    mvn pacakge -DskipTests
+    mvn package -DskipTests
 
 ## Deploy:
 

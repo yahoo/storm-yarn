@@ -5,7 +5,10 @@ import java.util.Map;
 
 import junit.framework.Assert;
 
+import org.apache.commons.configuration.SubsetConfiguration;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.metrics2.MetricsRecord;
+import org.apache.hadoop.metrics2.MetricsSink;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.thrift7.TException;
@@ -26,7 +29,6 @@ public class TestClient {
     
     @BeforeClass
     public static void setup() throws Exception {
-        /*
         LOG.info("Starting up MiniYARN cluster");
         if (yarnCluster == null) {
             yarnCluster = new MiniYARNCluster(TestClient.class.getName(), 1, 1, 1);
@@ -35,11 +37,10 @@ public class TestClient {
             yarnCluster.start();
         }
         try {
-            Thread.sleep(2000);
+            Thread.sleep(5000);
         } catch (InterruptedException e) {
             LOG.info("setup thread sleep interrupted. message=" + e.getMessage());
         }   
-        */
         
         LOG.info("Starting up Storm_YARN client");
         String appName = "storm-on-yarn-test";
