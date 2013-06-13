@@ -17,23 +17,17 @@
 package com.yahoo.storm.yarn;
 
 import java.io.PrintStream;
-import java.nio.ByteBuffer;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+import java.net.InetSocketAddress;
 import java.util.Map;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.net.NetUtils;
 import org.json.simple.JSONValue;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.yahoo.storm.yarn.Client.ClientCommand;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class StormMasterCommand implements ClientCommand {
-    private static final Logger LOG = LoggerFactory.getLogger(StormMasterCommand.class);
     enum COMMAND {
         GET_STORM_CONFIG,  
         SET_STORM_CONFIG,  
@@ -57,7 +51,8 @@ public class StormMasterCommand implements ClientCommand {
         //TODO can we make this required
         opts.addOption("appId", true, "(Required) The storm clusters app ID");
         
-        opts.addOption("output", true, "Output file for Storm configuration");
+        opts.addOption("rmAddr", true, "YARN RM's IPC address");
+        opts.addOption("output", true, "Output file");
         opts.addOption("supversiors", true, "(Required for addSupervisors) The # of supervisors to be added");
         return opts;
     }
@@ -69,10 +64,15 @@ public class StormMasterCommand implements ClientCommand {
         if(appId == null) {
             throw new IllegalArgumentException("-appId is required");
         }
-
+        
+        String yarnRMaddr_str = cl.getOptionValue("rmAddr");
+        InetSocketAddress yarnRMaddr = null;
+        if (yarnRMaddr_str != null)
+            yarnRMaddr = NetUtils.createSocketAddr(yarnRMaddr_str);
+        
         StormOnYarn storm = null;
         try {
-            storm = StormOnYarn.attachToApp(appId, stormConf);
+            storm = StormOnYarn.attachToApp(yarnRMaddr, appId, stormConf);
             StormMaster.Client client = storm.getClient();
             switch (cmd) {
             case GET_STORM_CONFIG:

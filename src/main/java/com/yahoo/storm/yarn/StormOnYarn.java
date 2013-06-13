@@ -17,12 +17,14 @@
 package com.yahoo.storm.yarn;
 
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
+import java.util.jar.JarFile;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -46,7 +48,6 @@ import org.apache.hadoop.yarn.exceptions.YarnRemoteException;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.thrift7.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,16 +64,18 @@ public class StormOnYarn {
     private Map _stormConf;
     private MasterClient _client = null;
 
-    private StormOnYarn(@SuppressWarnings("rawtypes") Map stormConf) {
-        this(null, stormConf);
+    private StormOnYarn(InetSocketAddress yarnRMaddr, 
+                @SuppressWarnings("rawtypes") Map stormConf) {
+        this(yarnRMaddr, null, stormConf);
     }
 
-    private StormOnYarn(ApplicationId appId,
+    private StormOnYarn(InetSocketAddress yarnRMaddr, 
+            ApplicationId appId,
             @SuppressWarnings("rawtypes") Map stormConf) {
         _stormConf = stormConf;
         _appId = appId;
         _hadoopConf = new YarnConfiguration();
-        _yarn = new YarnClientImpl();
+        _yarn = new YarnClientImpl(yarnRMaddr);
         _yarn.init(_hadoopConf);
         _yarn.start();
     }
@@ -90,7 +93,7 @@ public class StormOnYarn {
     }
 
     @SuppressWarnings("unchecked")
-    protected synchronized StormMaster.Client getClient() throws YarnRemoteException {
+    public synchronized StormMaster.Client getClient() throws YarnRemoteException {
         if (_client == null) {
             //TODO need a way to force this to reconnect in case of an error
             ApplicationReport report = _yarn.getApplicationReport(_appId);
@@ -296,18 +299,19 @@ public class StormOnYarn {
                 return toReturn.replaceAll("!.*$", "");
             }
         }
-        return null;
+                
+        throw new IOException("Fail to locat a JAR for class: "+my_class.getName());
     }
 
-    public static StormOnYarn launchApplication(String appName, String queue, 
+    public static StormOnYarn launchApplication(InetSocketAddress yarnRMaddr, String appName, String queue, 
             int amMB, @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
-        StormOnYarn storm = new StormOnYarn(stormConf);
+        StormOnYarn storm = new StormOnYarn(yarnRMaddr, stormConf);
         storm.launchApp(appName, queue, amMB);
         return storm;
     }
 
-    public static StormOnYarn attachToApp(String appId,
+    public static StormOnYarn attachToApp(InetSocketAddress yarnRMaddr, String appId,
             @SuppressWarnings("rawtypes") Map stormConf) {
-        return new StormOnYarn(ConverterUtils.toApplicationId(appId), stormConf);
+        return new StormOnYarn(yarnRMaddr, ConverterUtils.toApplicationId(appId), stormConf);
     }
 }

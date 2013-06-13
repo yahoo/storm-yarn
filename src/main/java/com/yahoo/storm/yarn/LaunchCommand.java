@@ -16,10 +16,13 @@
 
 package com.yahoo.storm.yarn;
 
+import java.io.PrintStream;
+import java.net.InetSocketAddress;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.net.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -31,10 +34,10 @@ public class LaunchCommand implements ClientCommand {
   @Override
   public Options getOpts() {
     Options opts = new Options();
-    opts.addOption("appname", true,
-        "Application Name. Default value - Storm-on-Yarn");
-    opts.addOption("queue", true,
-        "RM Queue in which this application is to be submitted");
+    opts.addOption("appname", true, "Application Name. Default value - Storm-on-Yarn");
+    opts.addOption("queue", true, "RM Queue in which this application is to be submitted");
+    opts.addOption("rmAddr", true, "YARN RM's IPC address");
+    opts.addOption("output", true, "Output file");
     return opts;
   }
 
@@ -42,6 +45,12 @@ public class LaunchCommand implements ClientCommand {
   public void process(CommandLine cl, @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
     String appName = cl.getOptionValue("appname", "Storm-on-Yarn");
     String queue = cl.getOptionValue("queue", "default");
+    
+    String yarnRMaddr_str = cl.getOptionValue("rmAddr");
+    InetSocketAddress yarnRMaddr = null;
+    if (yarnRMaddr_str != null)
+        yarnRMaddr = NetUtils.createSocketAddr(yarnRMaddr_str);
+    
     Integer amSize = (Integer) stormConf.get(Config.MASTER_SIZE_MB);
     if (amSize == null) {
       //TODO we should probably have a good guess here, but for now
@@ -50,8 +59,13 @@ public class LaunchCommand implements ClientCommand {
     
     StormOnYarn storm = null;
     try {
-      storm = StormOnYarn.launchApplication(appName, queue, amSize, stormConf);
+      storm = StormOnYarn.launchApplication(yarnRMaddr, appName, queue, amSize, stormConf);
       LOG.info("Submitted application's ID:" + storm.getAppId());
+
+      String output = cl.getOptionValue("output");
+      PrintStream os = (output!=null? new PrintStream(output) : System.out);
+      os.println(storm.getAppId());
+      if (output != null) os.close();
     } finally {
       if (storm != null) {
         storm.stop();

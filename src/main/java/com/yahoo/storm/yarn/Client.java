@@ -27,8 +27,6 @@ import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 
-import com.yahoo.storm.yarn.generated.StormMaster;
-
 public class Client {
 
     public static interface ClientCommand {
@@ -82,14 +80,13 @@ public class Client {
             }
         }
     }
-
+    
     /**
      * @param args the command line arguments
      * @throws Exception  
-     */
-    
+     */    
     @SuppressWarnings("rawtypes")
-    public static void main(String[] args) throws Exception {
+    public void execute(String[] args) throws Exception {
         HashMap<String, ClientCommand> commands = new HashMap<String, ClientCommand>();
         HelpCommand help = new HelpCommand(commands);
         commands.put("help", help);
@@ -137,4 +134,9 @@ public class Client {
             command.process(cl, storm_conf);
         }
     }
+
+    public static void main(String[] args) throws Exception {
+        Client client = new Client();
+        client.execute(args);
+    } 
 }

@@ -127,6 +127,34 @@
     <build>
         <plugins>
             <plugin>
+                <artifactId>maven-jar-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>jar</goal>
+                        </goals>
+                        <!-- strictly speaking, the unit test is really a regression test. 
+                            It needs the main jar to be available to be able to run. -->
+                        <phase>test-compile</phase>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+               <artifactId>maven-dependency-plugin</artifactId>
+               <executions>
+                 <execution>
+                   <id>build-classpath</id>
+                   <phase>generate-sources</phase>
+                   <goals><goal>build-classpath</goal></goals>
+                   <configuration>
+                        <!-- needed to run the unit test for DS to generate the required classpath 
+                             that is required in the env of the launch container in the mini yarn cluster -->
+                      <outputFile>target/classes/yarn-apps-ds-generated-classpath</outputFile>
+                   </configuration>
+                 </execution>
+               </executions>
+            </plugin>            
+            <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.0</version>
