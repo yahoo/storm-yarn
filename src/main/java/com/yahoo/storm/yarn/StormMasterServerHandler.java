@@ -48,12 +48,17 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     @Override
     public String getStormConf() throws TException {
         LOG.info("getStormConf");
+        Util.rmNulls(_storm_conf);
         return JSONValue.toJSONString(_storm_conf);
     }
 
     @SuppressWarnings("unchecked")
     @Override
     public void setStormConf(String storm_conf) throws TException {
+        // TODO Handle supervisor config change.
+        stopUI();
+        stopNimbus();
+
         Object json = JSONValue.parse(storm_conf);
         if (!json.getClass().isAssignableFrom(Map.class)) {
             LOG.warn("Could not parse configuration into a Map: " + storm_conf);
@@ -64,8 +69,6 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         Util.rmNulls(_storm_conf);
 
         // TODO Handle supervisor config change.
-        stopUI();
-        stopNimbus();
         startNimbus();
         startUI();
     }
@@ -96,7 +99,7 @@ public class StormMasterServerHandler implements StormMaster.Iface {
 
         void writeConfigFile() throws IOException {
             File configFile = new File(_stormConfigPath);
-            configFile.getParentFile().mkdir();
+            configFile.getParentFile().mkdirs();
             Yaml yaml = new Yaml();
             yaml.dump(_storm_conf, new FileWriter(configFile));
         }

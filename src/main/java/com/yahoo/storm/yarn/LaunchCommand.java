@@ -22,6 +22,7 @@ import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.net.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,7 +38,10 @@ public class LaunchCommand implements ClientCommand {
     opts.addOption("appname", true, "Application Name. Default value - Storm-on-Yarn");
     opts.addOption("queue", true, "RM Queue in which this application is to be submitted");
     opts.addOption("rmAddr", true, "YARN RM's IPC address");
+    opts.addOption("schedulerAddr", true, "YARN scheduler's IPC address");
+    opts.addOption("stormHome", true, "Storm Home Directory");
     opts.addOption("output", true, "Output file");
+    opts.addOption("stormZip", true, "file path of storm.zip");
     return opts;
   }
 
@@ -46,10 +50,13 @@ public class LaunchCommand implements ClientCommand {
     String appName = cl.getOptionValue("appname", "Storm-on-Yarn");
     String queue = cl.getOptionValue("queue", "default");
     
+    String schedulerAddr = cl.getOptionValue("schedulerAddr");
     String yarnRMaddr_str = cl.getOptionValue("rmAddr");
     InetSocketAddress yarnRMaddr = null;
     if (yarnRMaddr_str != null)
         yarnRMaddr = NetUtils.createSocketAddr(yarnRMaddr_str);
+    
+    String storm_zip_location = cl.getOptionValue("stormZip");
     
     Integer amSize = (Integer) stormConf.get(Config.MASTER_SIZE_MB);
     if (amSize == null) {
@@ -59,8 +66,10 @@ public class LaunchCommand implements ClientCommand {
     
     StormOnYarn storm = null;
     try {
-      storm = StormOnYarn.launchApplication(yarnRMaddr, appName, queue, amSize, stormConf);
-      LOG.info("Submitted application's ID:" + storm.getAppId());
+      LOG.debug("yarnRMaddr:"+yarnRMaddr);
+      LOG.debug("appName:"+appName);
+      storm = StormOnYarn.launchApplication(yarnRMaddr, schedulerAddr, appName, queue, amSize, stormConf, storm_zip_location);
+      LOG.debug("Submitted application's ID:" + storm.getAppId());
 
       String output = cl.getOptionValue("output");
       PrintStream os = (output!=null? new PrintStream(output) : System.out);

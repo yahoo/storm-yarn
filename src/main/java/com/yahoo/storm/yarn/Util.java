@@ -55,17 +55,20 @@ import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.util.Records;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import com.google.common.base.Joiner;
 
 class Util {
+  private static final Logger LOG = LoggerFactory.getLogger(Util.class);
     
   static String getStormHome() {
       String ret = System.getProperty("storm.home");
       if (ret == null) {
         throw new RuntimeException("storm.home is not set");
-      }
+      }       
       return ret;
   }
 
@@ -166,7 +169,7 @@ class Util {
   @SuppressWarnings("rawtypes")
   private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
           throws IOException {
-      String stormHomePath = System.getProperty("storm.home");
+      String stormHomePath = getStormHome();
       List<String> toRet = new ArrayList<String>();
       toRet.add("java");
       toRet.add("-server");
@@ -230,6 +233,7 @@ class Util {
   private static String buildClassPathArgument() throws IOException {
       List<String> paths = new ArrayList<String>();
       paths.add(new File(getConfigPath()).getParent());
+      paths.add("./conf/");
       paths.add(getStormHome());
       for (String jarPath : findAllJarsInPaths(getStormHome(),
               getStormHome() + File.separator + "lib")) {

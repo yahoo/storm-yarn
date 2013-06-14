@@ -26,8 +26,11 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Client {
+    private static final Logger LOG = LoggerFactory.getLogger(Client.class);
 
     public static interface ClientCommand {
 
@@ -112,9 +115,9 @@ public class Client {
         }
         ClientCommand command = commands.get(commandName);
         if(command == null) {
-            System.err.println("ERROR: " + commandName + " is not a supported command.");
+            LOG.error("ERROR: " + commandName + " is not a supported command.");
             help.printHelpFor(null);
-            System.exit(1);
+            System.exit(100);
         }
         Options opts = command.getOpts();
         if(!opts.hasOption("h")) {

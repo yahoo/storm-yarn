@@ -134,7 +134,15 @@ public class MasterServer extends ThriftServer {
       
       @SuppressWarnings("rawtypes")
       Map storm_conf = Config.readStormConfig(null);
+      Util.rmNulls(storm_conf);
+
       YarnConfiguration hadoopConf = new YarnConfiguration();
+      String rmAddr = System.getProperty("yarn.rmAddr");
+      if (rmAddr != null) 
+          hadoopConf.set(YarnConfiguration.RM_ADDRESS, rmAddr);
+      String schedulerAddr = System.getProperty("yarn.schedulerAddr");
+      if (schedulerAddr != null)
+          hadoopConf.set(YarnConfiguration.RM_SCHEDULER_ADDRESS, schedulerAddr);
       
       StormAMRMClient client =
           new StormAMRMClient(_appAttemptID, storm_conf, hadoopConf);
@@ -163,6 +171,7 @@ public class MasterServer extends ThriftServer {
         initAndStartLauncher(client, launcherQueue);
         client.startAllSupervisors();
         server.serve();
+        LOG.info("StormAMRMClient::unregisterApplicationMaster");
         client.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED,
             "AllDone", null);
       } finally {
@@ -229,8 +238,9 @@ public class MasterServer extends ThriftServer {
                 Utils.getInt(storm_conf.get(Config.MASTER_NUM_SUPERVISORS));
             LOG.info("launch " + numSupervisors + " supervisors");
             _handler.addSupervisors(numSupervisors);
+            
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }
+    }    
 }

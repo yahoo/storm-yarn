@@ -16,7 +16,10 @@
 
 package com.yahoo.storm.yarn;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -24,7 +27,6 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Vector;
-import java.util.jar.JarFile;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -58,6 +60,8 @@ public class StormOnYarn {
     private static final Logger LOG = LoggerFactory.getLogger(StormOnYarn.class);
 
     private YarnClient _yarn;
+    private InetSocketAddress _yarnRMaddr;
+    private String _schedulerAddr;
     private YarnConfiguration _hadoopConf;
     private ApplicationId _appId;
     @SuppressWarnings("rawtypes")
@@ -65,13 +69,17 @@ public class StormOnYarn {
     private MasterClient _client = null;
 
     private StormOnYarn(InetSocketAddress yarnRMaddr, 
+                String schedulerAddr,
                 @SuppressWarnings("rawtypes") Map stormConf) {
-        this(yarnRMaddr, null, stormConf);
+        this(yarnRMaddr, schedulerAddr, null, stormConf);
     }
 
     private StormOnYarn(InetSocketAddress yarnRMaddr, 
+            String schedulerAddr,
             ApplicationId appId,
             @SuppressWarnings("rawtypes") Map stormConf) {
+        _yarnRMaddr = yarnRMaddr;
+        _schedulerAddr = schedulerAddr;
         _stormConf = stormConf;
         _appId = appId;
         _hadoopConf = new YarnConfiguration();
@@ -97,11 +105,12 @@ public class StormOnYarn {
         if (_client == null) {
             //TODO need a way to force this to reconnect in case of an error
             ApplicationReport report = _yarn.getApplicationReport(_appId);
+            LOG.info("application report for "+_appId+" :"+report.getHost()+":"+report.getRpcPort());
             String host = report.getHost();
             _stormConf.put(Config.MASTER_HOST, host);
             int port = report.getRpcPort();
             _stormConf.put(Config.MASTER_THRIFT_PORT, port);
-            LOG.info("Attaching to "+host+":"+port+" to talk to app master");
+            LOG.info("Attaching to "+host+":"+port+" to talk to app master "+_appId);
             //TODO need a better work around to the config not being set.
             _stormConf.put(Config.MASTER_TIMEOUT_SECS, 10);
             _client = MasterClient.getConfiguredClient(_stormConf);
@@ -109,9 +118,11 @@ public class StormOnYarn {
         return _client.getClient();
     }
 
-    private void launchApp(String appName, String queue, int amMB) throws Exception {
+    private void launchApp(String appName, String queue, int amMB, String storm_zip_location) throws Exception {
+        LOG.debug("StormOnYarn:launchApp() ...");
         GetNewApplicationResponse app = _yarn.getNewApplication();
         _appId = app.getApplicationId();
+        LOG.debug("_appId:"+_appId);
 
         if(amMB > app.getMaximumResourceCapability().getMemory()) {
             //TODO need some sanity checks
@@ -143,12 +154,16 @@ public class StormOnYarn {
         fs.copyFromLocalFile(false, true, src, dst);
         localResources.put("AppMaster.jar", Util.newYarnAppResource(fs, dst));
 
-        // 
-        String stormVersion = Util.getStormVersion(_stormConf);
-        Path zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");
+        Path zip;
+        if (storm_zip_location != null) {
+            zip = new Path(storm_zip_location);
+        } else {
+            String stormVersion = Util.getStormVersion(_stormConf);
+            zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");         
+        }
         localResources.put("storm", Util.newYarnAppResource(fs, zip,
                 LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
-
+        
         Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf);
         // establish a symbolic link to conf directory
         //
@@ -170,10 +185,25 @@ public class StormOnYarn {
         for (String c : _hadoopConf.getStrings(
                 YarnConfiguration.YARN_APPLICATION_CLASSPATH,
                 YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
-            Apps.addToEnvironment(env, Environment.CLASSPATH.name(), c
-                    .trim());
+            Apps.addToEnvironment(env, Environment.CLASSPATH.name(), c.trim());
         }
-
+        
+        //For tests purpose, add maven generated classpath     
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.commons.configuration.Configuration")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.commons.cli.Options")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.net.NetUtils")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.conf.Configuration")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.security.authentication.client.AuthenticationException")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.YarnException")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.api.ApplicationConstants")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.api.records.ApplicationAttemptId")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.conf.YarnConfiguration")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.service.Service")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.util.ConverterUtils")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.client.AMRMClientImpl")));
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("com.google.protobuf.MessageOrBuilder")));
+        
         env.put("appJar", appMasterJar);
         env.put("appName", appName);
         env.put("appId", new Integer(_appId.getId()).toString());
@@ -182,8 +212,6 @@ public class StormOnYarn {
         // Set the necessary command to execute the application master
         Vector<String> vargs = new Vector<String>();
 
-        // Set java executable command
-        LOG.info("Setting up app master command");
         // TODO need a better way to do debugging
         vargs.add("find");
         vargs.add(".");
@@ -204,10 +232,14 @@ public class StormOnYarn {
         vargs.add("&&");
         vargs.add("java");
         vargs.add("-Dstorm.home=./storm/storm/");
+        vargs.add("-Dyarn.rmAddr="+_yarnRMaddr.toString());
+        vargs.add("-Dyarn.schedulerAddr="+_schedulerAddr);
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
         vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
         vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+        // Set java executable command
+        LOG.info("Setting up app master command:"+vargs);
 
         amContainer.setCommands(vargs);
 
@@ -277,7 +309,7 @@ public class StormOnYarn {
      * @return a jar file that contains the class, or null.
      * @throws IOException on any error
      */
-    public static String findContainingJar(Class<MasterServer> my_class) throws IOException {
+    public static String findContainingJar(Class<?> my_class) throws IOException {
         ClassLoader loader = my_class.getClassLoader();
         String class_file = my_class.getName().replaceAll("\\.", "/") + ".class";
         for(Enumeration<URL> itr = loader.getResources(class_file);
@@ -303,15 +335,15 @@ public class StormOnYarn {
         throw new IOException("Fail to locat a JAR for class: "+my_class.getName());
     }
 
-    public static StormOnYarn launchApplication(InetSocketAddress yarnRMaddr, String appName, String queue, 
-            int amMB, @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
-        StormOnYarn storm = new StormOnYarn(yarnRMaddr, stormConf);
-        storm.launchApp(appName, queue, amMB);
+    public static StormOnYarn launchApplication(InetSocketAddress yarnRMaddr, String schedulerAddr, String appName, String queue, 
+            int amMB, @SuppressWarnings("rawtypes") Map stormConf, String storm_zip_location) throws Exception {
+        StormOnYarn storm = new StormOnYarn(yarnRMaddr, schedulerAddr, stormConf);
+        storm.launchApp(appName, queue, amMB, storm_zip_location);
         return storm;
     }
 
     public static StormOnYarn attachToApp(InetSocketAddress yarnRMaddr, String appId,
             @SuppressWarnings("rawtypes") Map stormConf) {
-        return new StormOnYarn(yarnRMaddr, ConverterUtils.toApplicationId(appId), stormConf);
+        return new StormOnYarn(yarnRMaddr, null, ConverterUtils.toApplicationId(appId), stormConf);
     }
 }
