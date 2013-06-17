@@ -6,20 +6,16 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.server.MiniYARNCluster;
 import org.apache.thrift7.TException;
 import org.apache.zookeeper.server.NIOServerCnxnFactory;
-import org.apache.zookeeper.server.ZooKeeperServer;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.BeforeClass;
@@ -29,8 +25,6 @@ import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import com.google.common.base.Joiner;
-import com.yahoo.storm.yarn.StormOnYarn;
-import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class TestIntegration {
     static final Logger LOG = LoggerFactory.getLogger(TestIntegration.class);
@@ -39,13 +33,15 @@ public class TestIntegration {
     static String yarnRmAddr;
     static String schedulerAddr;
     static String appId;
-    static NIOServerCnxnFactory zkFactory;
+    static EmbeddedZKServer zkServer;
 
+    @SuppressWarnings({ "rawtypes", "unchecked" })
     @BeforeClass
     public static void setup() {
-        int zkport;
-
         try {
+            zkServer = new EmbeddedZKServer();
+            zkServer.start();
+            
             LOG.info("Starting up MiniYARN cluster");
             if (yarnCluster == null) {
                 yarnCluster = new MiniYARNCluster(TestIntegration.class.getName(), 1, 1, 1);
@@ -53,21 +49,6 @@ public class TestIntegration {
                 yarnCluster.init(conf);
                 yarnCluster.start();
             }
-
-            LOG.info("Starting up embedded Zookeeper server");
-            File localfile = new File("./target/zookeeper.data");
-            ZooKeeperServer zkServer = new ZooKeeperServer(localfile, localfile, 2000);
-            zkFactory = new NIOServerCnxnFactory();
-            boolean binded = false;
-            for (zkport = 60000; true; zkport++)
-                try {
-                    zkFactory.configure(new InetSocketAddress(zkport), 10);
-                    break;
-                } catch (BindException e) {
-                    if (zkport == 65535) throw new IOException("Fail to find a port for Zookeeper server to bind");
-                }
-            LOG.info("Zookeeper port allocated:"+zkport);
-            zkFactory.startup(zkServer);
             
             sleep(2000);
             yarnRmAddr = yarnCluster.getConfig().get(YarnConfiguration.RM_ADDRESS);
@@ -84,7 +65,7 @@ public class TestIntegration {
             //create a storm configuration file with zkport 
             Map storm_conf = Config.readStormConfig();
             Util.rmNulls(storm_conf);
-            storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkport);
+            storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
             File configFile = new File("target/storm.yaml");
             Yaml yaml = new Yaml();
             yaml.dump(storm_conf, new FileWriter(configFile));
@@ -220,10 +201,9 @@ public class TestIntegration {
         }
         
         //shutdown Zookeeper server
-        if (zkFactory != null) {
-            LOG.info("shutdown embedded zookeeper server");
-            zkFactory.shutdown();
-            zkFactory = null;
+        if (zkServer != null) {
+            zkServer.stop();
+            zkServer = null;
         }
    }
 

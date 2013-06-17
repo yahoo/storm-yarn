@@ -45,6 +45,17 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         _stormConfigPath = new File("am-config/storm.yaml").getAbsolutePath();
     }
 
+    void stop() {
+        try {
+            stopUI();
+            stopSupervisors();
+            stopNimbus();
+        } catch (TException e) {
+            // TODO Auto-generated catch block
+            e.printStackTrace();
+        }
+    }
+    
     @Override
     public String getStormConf() throws TException {
         LOG.info("getting configuration...");

@@ -71,9 +71,7 @@ public class MasterServer extends ThriftServer {
 
                         if (allocResponse.getAMResponse().getReboot()) {
                             LOG.info("Got Reboot from the RM");
-                            _handler.stopUI();
-                            _handler.stopSupervisors();
-                            _handler.stopNimbus();
+                            _handler.stop();
                             System.exit(0);
                         }
 
@@ -244,5 +242,13 @@ public class MasterServer extends ThriftServer {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }    
+    }   
+    
+    public void stop() {
+        super.stop();
+        if (_handler != null) {
+            _handler.stop();
+            _handler = null;
+        }
+    }
 }

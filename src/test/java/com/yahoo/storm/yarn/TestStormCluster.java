@@ -17,8 +17,11 @@
 package com.yahoo.storm.yarn;
 
 import java.io.File;
+import java.io.FileWriter;
 import java.io.FilenameFilter;
 import java.io.IOException;
+import java.net.BindException;
+import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.Socket;
@@ -28,11 +31,14 @@ import java.util.Map;
 import junit.framework.Assert;
 
 import org.apache.thrift7.TException;
+import org.apache.zookeeper.server.NIOServerCnxnFactory;
+import org.apache.zookeeper.server.ZooKeeperServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
 import static org.mockito.Mockito.mock;
 
@@ -41,11 +47,16 @@ import com.yahoo.storm.yarn.generated.StormMaster;
 public class TestStormCluster {
     static final Logger LOG = LoggerFactory.getLogger(TestStormMaster.class);
     
-    protected static MasterServer server = null;
-    protected static MasterClient client = null;
+    private static EmbeddedZKServer zkServer;
+    private static MasterServer server = null;
+    private static MasterClient client = null;
     
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @BeforeClass
     public static void setup() throws InterruptedException, IOException {
+        //start embedded ZK server
+        zkServer = new EmbeddedZKServer();
+        zkServer.start();
 
         String storm_home = getStormHomePath();
         if (storm_home == null) {
@@ -56,9 +67,14 @@ public class TestStormCluster {
         System.setProperty("storm.home", storm_home);
 
         //simple configuration
-        @SuppressWarnings("rawtypes")
         final Map storm_conf = Config.readStormConfig(null);
+        storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
         LOG.info("Storm server attaching to port: "+ storm_conf.get(Config.MASTER_THRIFT_PORT));
+        LOG.info("Save configuration file at "+storm_home+"/storm.yaml");
+        File configFile = new File("am-config/storm.yaml");
+        Yaml yaml = new Yaml();
+        yaml.dump(storm_conf, new FileWriter(configFile));
+        
         StormAMRMClient mockClient = mock(StormAMRMClient.class);
         server = new MasterServer(storm_conf, mockClient);
 
@@ -194,6 +210,12 @@ public class TestStormCluster {
         if (server != null) {
             server.stop();
             server = null;
+        }
+        
+        //shutdown Zookeeper server
+        if (zkServer != null) {
+            zkServer.stop();
+            zkServer = null;
         }
     }
 
