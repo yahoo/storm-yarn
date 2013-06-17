@@ -60,6 +60,8 @@ import org.yaml.snakeyaml.Yaml;
 import com.google.common.base.Joiner;
 
 class Util {
+
+  private static final String STORM_CONF_PATH_STRING = "conf/storm.yaml";
     
   static String getStormHome() {
       String ret = System.getProperty("storm.home");
@@ -110,11 +112,11 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static Path createConfigurationFileInFs(FileSystem fs,
-          String appHome, Map stormConf) throws IOException {
+          Map stormConf) throws IOException {
     // dump stringwriter's content into FS conf/storm.yaml
-    Path dirDst = new Path(fs.getHomeDirectory(), appHome + "/conf");
+    Path confDst = new Path(STORM_CONF_PATH_STRING);
+    Path dirDst = confDst.getParent();
     fs.mkdirs(dirDst);
-    Path confDst = new Path(dirDst, "storm.yaml");
     FSDataOutputStream out = fs.create(confDst);
     Yaml yaml = new Yaml();
     OutputStreamWriter writer = new OutputStreamWriter(out);
@@ -158,10 +160,6 @@ class Util {
         });
     return proxy;
   }
-  
-  private static String getStormConfigPathString() {
-      return new File("am-config/storm.yaml").getAbsolutePath();
-  }
 
   @SuppressWarnings("rawtypes")
   private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
@@ -174,7 +172,7 @@ class Util {
       toRet.add("-Djava.library.path="
               + conf.get(backtype.storm.Config.JAVA_LIBRARY_PATH));
       toRet.add("-Dstorm.conf.file=" + new
-              File(getStormConfigPathString()).getName());
+              File(STORM_CONF_PATH_STRING).getName());
       toRet.add("-cp");
       toRet.add(buildClassPathArgument());
 
@@ -222,14 +220,10 @@ class Util {
 
       return toRet;
   }
-  
-  private static String getConfigPath() {
-      return new File("am-config/storm.yaml").getAbsolutePath();
-  }
 
   private static String buildClassPathArgument() throws IOException {
       List<String> paths = new ArrayList<String>();
-      paths.add(new File(getConfigPath()).getParent());
+      paths.add(new File(STORM_CONF_PATH_STRING).getParent());
       paths.add(getStormHome());
       for (String jarPath : findAllJarsInPaths(getStormHome(),
               getStormHome() + File.separator + "lib")) {

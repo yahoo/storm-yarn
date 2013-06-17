@@ -37,12 +37,11 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     @SuppressWarnings("rawtypes")
     Map _storm_conf;
     StormAMRMClient _client;
-    final private String _stormConfigPath;
     
     StormMasterServerHandler(@SuppressWarnings("rawtypes") Map storm_conf, StormAMRMClient client) {
         _storm_conf = storm_conf;
+        Util.rmNulls(_storm_conf);
         _client = client;
-        _stormConfigPath = new File("am-config/storm.yaml").getAbsolutePath();
     }
     
     @Override
@@ -95,7 +94,7 @@ public class StormMasterServerHandler implements StormMaster.Iface {
 	}
 	
 	void writeConfigFile() throws IOException {
-            File configFile = new File(_stormConfigPath);
+            File configFile = new File("am-config/storm.yaml").getAbsoluteFile();
             configFile.getParentFile().mkdir();
             Yaml yaml = new Yaml();
             yaml.dump(_storm_conf, new FileWriter(configFile));
