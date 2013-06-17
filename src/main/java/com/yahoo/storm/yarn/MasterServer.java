@@ -27,7 +27,6 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
@@ -40,6 +39,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.service.Service;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
+import org.apache.thrift7.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,191 +54,193 @@ public class MasterServer extends ThriftServer {
     private static ApplicationAttemptId _appAttemptID;
     private StormMasterServerHandler _handler;
 
-    private static Thread initAndStartHeartbeat(final StormAMRMClient client,
+    private Thread initAndStartHeartbeat(final StormAMRMClient client,
             final BlockingQueue<Container> launcherQueue,
             final int heartBeatIntervalMs) {
         Thread thread = new Thread() {
-        @Override
-        public void run() {
-          try {
-            while (client.getServiceState() == Service.STATE.STARTED &&
-                !Thread.currentThread().isInterrupted()) {
-              
-              Thread.sleep(heartBeatIntervalMs); // heart beats once per second
+            @Override
+            public void run() {
+                try {
+                    while (client.getServiceState() == Service.STATE.STARTED &&
+                            !Thread.currentThread().isInterrupted()) {
 
-              // We always send 0% progress.
-              AllocateResponse allocResponse = client.allocate(0.0f);
+                        Thread.sleep(heartBeatIntervalMs); // heart beats once per second
 
-              if (allocResponse.getAMResponse().getReboot()) {
-                throw new YarnException("Got Reboot from the RM");
-              }
+                        // We always send 0% progress.
+                        AllocateResponse allocResponse = client.allocate(0.0f);
 
-              List<Container> allocatedContainers = allocResponse.getAMResponse().getAllocatedContainers();
-              if (allocatedContainers.size() > 0) {
-                // Add newly allocated containers to the client.
-            	LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
-                client.addAllocatedContainers(allocatedContainers);
-                if (client.supervisorsAreToRun()) {
-                  LOG.debug("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
-                  launcherQueue.addAll(allocatedContainers);
-                } else {
-                  LOG.debug("HB: Supervisors are to stop, so releasing all containers...");
-                  client.stopAllSupervisors();
+                        if (allocResponse.getAMResponse().getReboot()) {
+                            LOG.info("Got Reboot from the RM");
+                            _handler.stopUI();
+                            _handler.stopSupervisors();
+                            _handler.stopNimbus();
+                            System.exit(0);
+                        }
+
+                        List<Container> allocatedContainers = allocResponse.getAMResponse().getAllocatedContainers();
+                        if (allocatedContainers.size() > 0) {
+                            // Add newly allocated containers to the client.
+                            LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
+                            client.addAllocatedContainers(allocatedContainers);
+                            if (client.supervisorsAreToRun()) {
+                                LOG.debug("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
+                                launcherQueue.addAll(allocatedContainers);
+                            } else {
+                                LOG.debug("HB: Supervisors are to stop, so releasing all containers...");
+                                client.stopAllSupervisors();
+                            }
+                        }
+
+                        List<ContainerStatus> completedContainers =
+                                allocResponse.getAMResponse().getCompletedContainersStatuses();
+
+                        if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
+                            LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
+                            client.startAllSupervisors();
+                        }
+
+                    }
+                } catch (Throwable t) {
+                    // Something happened we could not handle.  Make sure the AM goes
+                    // down so that we are not surprised later on that our heart
+                    // stopped..
+                    t.printStackTrace();
+                    System.exit(1);
                 }
-              }
-
-              List<ContainerStatus> completedContainers =
-                  allocResponse.getAMResponse().getCompletedContainersStatuses();
-              
-              if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
-            	LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
-                client.startAllSupervisors();
-              }
-            
             }
-          } catch (Throwable t) {
-            // Something happened we could not handle.  Make sure the AM goes
-            // down so that we are not surprised later on that our heart
-            // stopped..
-            t.printStackTrace();
-            System.exit(1);
-          }
-        }
-      };
-      thread.start();
-      return thread;
+        };
+        thread.start();
+        return thread;
     }
 
     public static void main(String[] args) throws Exception {
-      System.err.println("Inside the AM!!!");
-      LOG.info("Starting the AM!!!!");
-      
-      Options opts = new Options();
-      opts.addOption("app_attempt_id", true, "App Attempt ID. Not to be used " +
-          "unless for testing purposes");
+        LOG.info("Starting the AM!!!!");
 
-      CommandLine cl = new GnuParser().parse(opts, args);
+        Options opts = new Options();
+        opts.addOption("app_attempt_id", true, "App Attempt ID. Not to be used " +
+                "unless for testing purposes");
 
-      Map<String, String> envs = System.getenv();
-      _appAttemptID = Records.newRecord(ApplicationAttemptId.class);
-      if (cl.hasOption("app_attempt_id")) {
-          String appIdStr = cl.getOptionValue("app_attempt_id", "");
-          _appAttemptID = ConverterUtils.toApplicationAttemptId(appIdStr);
-      } else if (envs.containsKey(ApplicationConstants.AM_CONTAINER_ID_ENV)) {
-          ContainerId containerId = 
-            ConverterUtils.toContainerId(envs.get(ApplicationConstants.AM_CONTAINER_ID_ENV));
-          _appAttemptID = containerId.getApplicationAttemptId();
-      } else {
-          throw new IllegalArgumentException("Container and application attempt IDs not set in the environment");
-      }
-      
-      @SuppressWarnings("rawtypes")
-      Map storm_conf = Config.readStormConfig(null);
-      Util.rmNulls(storm_conf);
+        CommandLine cl = new GnuParser().parse(opts, args);
 
-      YarnConfiguration hadoopConf = new YarnConfiguration();
-      String rmAddr = System.getProperty("yarn.rmAddr");
-      if (rmAddr != null) 
-          hadoopConf.set(YarnConfiguration.RM_ADDRESS, rmAddr);
-      String schedulerAddr = System.getProperty("yarn.schedulerAddr");
-      if (schedulerAddr != null)
-          hadoopConf.set(YarnConfiguration.RM_SCHEDULER_ADDRESS, schedulerAddr);
-      
-      StormAMRMClient client =
-          new StormAMRMClient(_appAttemptID, storm_conf, hadoopConf);
-      client.init(hadoopConf);
-      client.start();
-      
-      BlockingQueue<Container> launcherQueue =
-          new LinkedBlockingQueue<Container>();
+        Map<String, String> envs = System.getenv();
+        _appAttemptID = Records.newRecord(ApplicationAttemptId.class);
+        if (cl.hasOption("app_attempt_id")) {
+            String appIdStr = cl.getOptionValue("app_attempt_id", "");
+            _appAttemptID = ConverterUtils.toApplicationAttemptId(appIdStr);
+        } else if (envs.containsKey(ApplicationConstants.AM_CONTAINER_ID_ENV)) {
+            ContainerId containerId = 
+                    ConverterUtils.toContainerId(envs.get(ApplicationConstants.AM_CONTAINER_ID_ENV));
+            _appAttemptID = containerId.getApplicationAttemptId();
+        } else {
+            throw new IllegalArgumentException("Container and application attempt IDs not set in the environment");
+        }
 
-      try {
-        InetSocketAddress addr =
-            NetUtils.createSocketAddr(hadoopConf.get(YarnConfiguration.RM_SCHEDULER_ADDRESS,
-                        YarnConfiguration.DEFAULT_RM_SCHEDULER_ADDRESS));
-        int port = Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT));
-        RegisterApplicationMasterResponse resp =
-            client.registerApplicationMaster(addr.getHostName(), port, null);
-        LOG.info("Got a registration response "+resp);
-        LOG.info("Max Capability "+resp.getMaximumResourceCapability());
-        client.setMaxResource(resp.getMaximumResourceCapability());
-        MasterServer server = new MasterServer(storm_conf, client);
-        LOG.info("Starting HB thread");
-        initAndStartHeartbeat(client, launcherQueue,
-                (Integer) storm_conf
-                .get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS));
-        LOG.info("Starting launcher");
-        initAndStartLauncher(client, launcherQueue);
-        client.startAllSupervisors();
-        server.serve();
-        LOG.info("StormAMRMClient::unregisterApplicationMaster");
-        client.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED,
-            "AllDone", null);
-      } finally {
-        client.stop();
-      }
-      System.err.println("See Ya!!!");
-      System.exit(0);
+        @SuppressWarnings("rawtypes")
+        Map storm_conf = Config.readStormConfig(null);
+        Util.rmNulls(storm_conf);
+
+        YarnConfiguration hadoopConf = new YarnConfiguration();
+        String rmAddr = System.getProperty("yarn.rmAddr");
+        if (rmAddr != null) 
+            hadoopConf.set(YarnConfiguration.RM_ADDRESS, rmAddr);
+        String schedulerAddr = System.getProperty("yarn.schedulerAddr");
+        if (schedulerAddr != null)
+            hadoopConf.set(YarnConfiguration.RM_SCHEDULER_ADDRESS, schedulerAddr);
+
+        StormAMRMClient rmClient =
+                new StormAMRMClient(_appAttemptID, storm_conf, hadoopConf);
+        rmClient.init(hadoopConf);
+        rmClient.start();
+
+        BlockingQueue<Container> launcherQueue = new LinkedBlockingQueue<Container>();
+
+        MasterServer server = new MasterServer(storm_conf, rmClient);;
+        try {
+            InetSocketAddress addr =
+                    NetUtils.createSocketAddr(hadoopConf.get(YarnConfiguration.RM_SCHEDULER_ADDRESS,
+                            YarnConfiguration.DEFAULT_RM_SCHEDULER_ADDRESS));
+            int port = Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT));
+            RegisterApplicationMasterResponse resp =
+                    rmClient.registerApplicationMaster(addr.getHostName(), port, null);
+            LOG.info("Got a registration response "+resp);
+            LOG.info("Max Capability "+resp.getMaximumResourceCapability());
+            rmClient.setMaxResource(resp.getMaximumResourceCapability());
+            LOG.info("Starting HB thread");
+            server.initAndStartHeartbeat(rmClient, launcherQueue,
+                    (Integer) storm_conf
+                    .get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS));
+            LOG.info("Starting launcher");
+            initAndStartLauncher(rmClient, launcherQueue);
+            rmClient.startAllSupervisors();
+            LOG.info("Starting Master Thrift Server");
+            server.serve();
+            LOG.info("StormAMRMClient::unregisterApplicationMaster");
+            rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED,
+                    "AllDone", null);
+        } finally {
+            LOG.info("Stop Master Thrift Server");
+            server.stop();
+            LOG.info("Stop RM client");
+            rmClient.stop();
+        }
+        LOG.debug("See Ya!!!");
+        System.exit(0);
     }
 
     private static void initAndStartLauncher(final StormAMRMClient client,
-        final BlockingQueue<Container> launcherQueue) {
-      Thread thread = new Thread() {
-        Container container;
-        @Override
-        public void run() {
-          while (client.getServiceState() == Service.STATE.STARTED &&
-              !Thread.currentThread().isInterrupted()) {
-            try {
-              container = launcherQueue.take();
-              LOG.info("LAUNCHER: Taking container with id ("+container.getId()+") from the queue.");
-              if (client.supervisorsAreToRun()) {
-                LOG.info("LAUNCHER: Supervisors are to run, so launching container id ("+container.getId()+")");
-                client.launchSupervisorOnContainer(container);
-              } else {
-                // Do nothing
-                LOG.info("LAUNCHER: Supervisors are not to run, so not launching container id ("+container.getId()+")");
-              }
-            } catch (InterruptedException e) {
-              if (client.getServiceState() == Service.STATE.STARTED) {
-                LOG.error("Launcher thread interrupted : ", e);
-                System.exit(1);
-              }
-              return;
-            } catch (IOException e) {
-              LOG.error("Launcher thread I/O exception : ", e);
-              System.exit(1);
+            final BlockingQueue<Container> launcherQueue) {
+        Thread thread = new Thread() {
+            Container container;
+            @Override
+            public void run() {
+                while (client.getServiceState() == Service.STATE.STARTED &&
+                        !Thread.currentThread().isInterrupted()) {
+                    try {
+                        container = launcherQueue.take();
+                        LOG.info("LAUNCHER: Taking container with id ("+container.getId()+") from the queue.");
+                        if (client.supervisorsAreToRun()) {
+                            LOG.info("LAUNCHER: Supervisors are to run, so launching container id ("+container.getId()+")");
+                            client.launchSupervisorOnContainer(container);
+                        } else {
+                            // Do nothing
+                            LOG.info("LAUNCHER: Supervisors are not to run, so not launching container id ("+container.getId()+")");
+                        }
+                    } catch (InterruptedException e) {
+                        if (client.getServiceState() == Service.STATE.STARTED) {
+                            LOG.error("Launcher thread interrupted : ", e);
+                            System.exit(1);
+                        }
+                        return;
+                    } catch (IOException e) {
+                        LOG.error("Launcher thread I/O exception : ", e);
+                        System.exit(1);
+                    }
+                }
             }
-          }
-        }
-      };
-      thread.start();
+        };
+        thread.start();
     }
 
     public MasterServer(@SuppressWarnings("rawtypes") Map storm_conf, 
-		    StormAMRMClient client) {
-    	this(storm_conf, new StormMasterServerHandler(storm_conf, client));
+            StormAMRMClient client) {
+        this(storm_conf, new StormMasterServerHandler(storm_conf, client));
     }
 
     private MasterServer(@SuppressWarnings("rawtypes") Map storm_conf,
-		    StormMasterServerHandler handler) {
+            StormMasterServerHandler handler) {
         super(storm_conf, 
                 new Processor<StormMaster.Iface>(handler), 
                 Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT)));
         try {
             _handler = handler;
-            
-            LOG.info("launch nimbus");
             _handler.startNimbus();
-
-            LOG.info("launch ui");
             _handler.startUI();
-            
+
             int numSupervisors =
-                Utils.getInt(storm_conf.get(Config.MASTER_NUM_SUPERVISORS));
+                    Utils.getInt(storm_conf.get(Config.MASTER_NUM_SUPERVISORS));
             LOG.info("launch " + numSupervisors + " supervisors");
             _handler.addSupervisors(numSupervisors);
-            
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

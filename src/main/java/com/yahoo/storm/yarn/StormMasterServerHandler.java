@@ -47,7 +47,7 @@ public class StormMasterServerHandler implements StormMaster.Iface {
 
     @Override
     public String getStormConf() throws TException {
-        LOG.info("getStormConf");
+        LOG.info("getting configuration...");
         Util.rmNulls(_storm_conf);
         return JSONValue.toJSONString(_storm_conf);
     }
@@ -55,6 +55,8 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     @SuppressWarnings("unchecked")
     @Override
     public void setStormConf(String storm_conf) throws TException {
+        LOG.info("setting configuration...");
+
         // TODO Handle supervisor config change.
         stopUI();
         stopNimbus();
@@ -75,6 +77,7 @@ public class StormMasterServerHandler implements StormMaster.Iface {
 
     @Override
     public void addSupervisors(int number) throws TException {
+        LOG.info("adding "+number+" supervisors...");
         _client.addSupervisors(number);
     }
 
@@ -97,7 +100,7 @@ public class StormMasterServerHandler implements StormMaster.Iface {
             }
         }
 
-        void writeConfigFile() throws IOException {
+        private void writeConfigFile() throws IOException {
             File configFile = new File(_stormConfigPath);
             configFile.getParentFile().mkdirs();
             Yaml yaml = new Yaml();
@@ -135,64 +138,72 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         }
     }
 
-    StormProcess nimbusProcess = new StormProcess("nimbus");
-    StormProcess uiProcess = new StormProcess("ui");
+    StormProcess nimbusProcess;
+    StormProcess uiProcess;
 
     @Override
     public void startNimbus() {
+        LOG.info("starting nimbus...");
         synchronized(this) {
-            if (nimbusProcess.isAlive()){
+            if (nimbusProcess!=null && nimbusProcess.isAlive()){
                 LOG.info("Received a request to start nimbus, but it is running now");
                 return;
             }
-            LOG.info("Starting nimbus...");
+            nimbusProcess = new StormProcess("nimbus");
             nimbusProcess.start(); 
         }       
     }
 
     @Override
     public void stopNimbus() {
+        LOG.info("stopping nimbus...");
         synchronized(this) {
+            if (nimbusProcess == null) return;
             if (!nimbusProcess.isAlive()){
                 LOG.info("Received a request to stop nimbus, but it is not running now");
                 return;
             }
-            LOG.info("Stoping nimbus...");
             nimbusProcess.stopStormProcess();
+            nimbusProcess = null;
         }
     }
 
     @Override
     public void startUI() throws TException {
+        LOG.info("starting UI...");
         synchronized(this) {
-            if (uiProcess.isAlive()){
+            if (uiProcess!=null && uiProcess.isAlive()){
                 LOG.info("Received a request to start UI, but it is running now");
                 return;
             }
-            LOG.info("Starting ui...");
+            uiProcess = new StormProcess("ui");
             uiProcess.start();
         } 
     }
 
     @Override
     public void stopUI() throws TException {
+        LOG.info("stopping UI...");
         synchronized(this) {
+            if (uiProcess == null) return;
             if (!uiProcess.isAlive()){
                 LOG.info("Received a request to stop UI, but it is not running now");
                 return;
             }
-            LOG.info("Stoping ui...");
             uiProcess.stopStormProcess();
+            uiProcess = null;
         }
     }
 
     @Override
     public void startSupervisors() throws TException {
+        LOG.info("starting supervisors...");
         _client.startAllSupervisors();
     }
 
     @Override
     public void stopSupervisors() throws TException {
+        LOG.info("stopping supervisors...");
         _client.stopAllSupervisors();
     }
 }

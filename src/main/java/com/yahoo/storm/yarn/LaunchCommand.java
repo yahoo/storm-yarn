@@ -22,7 +22,6 @@ import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.net.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -68,7 +67,12 @@ public class LaunchCommand implements ClientCommand {
     try {
       LOG.debug("yarnRMaddr:"+yarnRMaddr);
       LOG.debug("appName:"+appName);
-      storm = StormOnYarn.launchApplication(yarnRMaddr, schedulerAddr, appName, queue, amSize, stormConf, storm_zip_location);
+      storm = StormOnYarn.launchApplication(yarnRMaddr, 
+                  schedulerAddr, 
+                  appName, 
+                  queue, amSize, 
+                  stormConf, 
+                  storm_zip_location);
       LOG.debug("Submitted application's ID:" + storm.getAppId());
 
       String output = cl.getOptionValue("output");

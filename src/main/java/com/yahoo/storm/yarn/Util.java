@@ -55,14 +55,11 @@ import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.util.Records;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import com.google.common.base.Joiner;
 
 class Util {
-  private static final Logger LOG = LoggerFactory.getLogger(Util.class);
     
   static String getStormHome() {
       String ret = System.getProperty("storm.home");
@@ -232,7 +229,7 @@ class Util {
 
   private static String buildClassPathArgument() throws IOException {
       List<String> paths = new ArrayList<String>();
-      paths.add(new File(getConfigPath()).getParent());
+      //paths.add(new File(getConfigPath()).getParent());
       paths.add("./conf/");
       paths.add(getStormHome());
       for (String jarPath : findAllJarsInPaths(getStormHome(),

@@ -16,10 +16,7 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -68,7 +65,7 @@ public class StormOnYarn {
     private Map _stormConf;
     private MasterClient _client = null;
 
-    private StormOnYarn(InetSocketAddress yarnRMaddr, 
+    private StormOnYarn(InetSocketAddress yarnRMaddr,
                 String schedulerAddr,
                 @SuppressWarnings("rawtypes") Map stormConf) {
         this(yarnRMaddr, schedulerAddr, null, stormConf);

@@ -98,7 +98,7 @@ public class Client {
         commands.put("getStormConfig", new StormMasterCommand(StormMasterCommand.COMMAND.GET_STORM_CONFIG));
         commands.put("addSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.ADD_SUPERVISORS));
         commands.put("startNimbus", new StormMasterCommand(StormMasterCommand.COMMAND.START_NIMBUS));
-        commands.put("stopNimbus", new StormMasterCommand(StormMasterCommand.COMMAND.START_NIMBUS));
+        commands.put("stopNimbus", new StormMasterCommand(StormMasterCommand.COMMAND.STOP_NIMBUS));
         commands.put("startUI", new StormMasterCommand(StormMasterCommand.COMMAND.START_UI));
         commands.put("stopUI", new StormMasterCommand(StormMasterCommand.COMMAND.STOP_UI));
         commands.put("startSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.START_SUPERVISORS));
@@ -133,7 +133,7 @@ public class Client {
                 if ((remaining_args!=null)  && !remaining_args.isEmpty())
                     config_file = (String)remaining_args.get(0);
             }
-            Map storm_conf = Config.readStormConfig(config_file);
+            Map storm_conf = Config.readStormConfig(config_file);            
             command.process(cl, storm_conf);
         }
     }
