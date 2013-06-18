@@ -55,7 +55,7 @@ public class MasterServer extends ThriftServer {
     private static ApplicationAttemptId _appAttemptID;
     private StormMasterServerHandler _handler;
 
-    private static Thread initAndStartHeartbeat(final StormAMRMClient client,
+    private Thread initAndStartHeartbeat(final StormAMRMClient client,
             final BlockingQueue<Container> launcherQueue,
             final int heartBeatIntervalMs) {
         Thread thread = new Thread() {
@@ -71,6 +71,7 @@ public class MasterServer extends ThriftServer {
               AllocateResponse allocResponse = client.allocate(0.5f);
 
               if (allocResponse.getAMResponse().getReboot()) {
+                _handler.stop();
                 throw new YarnException("Got Reboot from the RM");
               }
 
@@ -102,6 +103,7 @@ public class MasterServer extends ThriftServer {
             // down so that we are not surprised later on that our heart
             // stopped..
             t.printStackTrace();
+            _handler.stop();
             System.exit(1);
           }
         }
