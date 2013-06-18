@@ -34,7 +34,8 @@ public class TestIntegration {
     static String schedulerAddr;
     static String appId;
     static EmbeddedZKServer zkServer;
-
+    static File storm_conf_file;
+    static String storm_home;
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @BeforeClass
     public static void setup() {
@@ -54,25 +55,17 @@ public class TestIntegration {
             yarnRmAddr = yarnCluster.getConfig().get(YarnConfiguration.RM_ADDRESS);
             schedulerAddr = yarnCluster.getConfig().get(YarnConfiguration.RM_SCHEDULER_ADDRESS);
 
-            String storm_home = getStormHomePath();
-            if (storm_home == null) {
-                throw new RuntimeException("Storm home was not found."
-                        + "  Make sure to include storm in the PATH.");
-            }
+            storm_home = TestConfig.stormHomePath();
             LOG.info("Will be using storm found on PATH at "+storm_home);
-            System.setProperty("storm.home", storm_home);
 
             //create a storm configuration file with zkport 
-            Map storm_conf = Config.readStormConfig();
-            Util.rmNulls(storm_conf);
+            final Map storm_conf = Config.readStormConfig();
             storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
-            File configFile = new File("target/storm.yaml");
-            Yaml yaml = new Yaml();
-            yaml.dump(storm_conf, new FileWriter(configFile));
+            storm_conf_file = TestConfig.createConfigFile(storm_conf);
 
             List<String> cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "launch",
-                    "target/storm.yaml",
+                    storm_conf_file.toString(),
                     "--stormZip",
                     "lib/storm.zip",
                     "--appname",
@@ -190,6 +183,9 @@ public class TestIntegration {
         }
         sleep(1000);
         
+        //remove configuration file
+        TestConfig.rmConfigFile(storm_conf_file);
+
         //shutdown Zookeeper server
         if (zkServer != null) {
             zkServer.stop();
@@ -204,6 +200,7 @@ public class TestIntegration {
         pb.redirectOutput();
         Map env = pb.environment();
         env.putAll(System.getenv());
+        env.put("PATH", storm_home+"/bin:"+env.get("PATH"));
         Process proc = pb.start();
         int status = proc.waitFor();
         return status;

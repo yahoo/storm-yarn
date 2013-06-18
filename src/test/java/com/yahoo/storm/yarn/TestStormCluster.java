@@ -105,6 +105,12 @@ public class TestStormCluster {
                 LOG.warn("Still cannot connect to nimbus server.");
                 continue;
             }
+            try {
+                checkUiConnection(storm_conf);
+            } catch (IOException e) {
+                LOG.warn("Still cannot connect to UI server.");
+                continue;
+            }
 
             // The server appears to be up.  Launch the client.
             client = MasterClient.getConfiguredClient(storm_conf);
@@ -225,10 +231,14 @@ public class TestStormCluster {
     public void testUI() throws Exception {
         LOG.info("Testing UI");
         @SuppressWarnings("rawtypes")
-        final Map storm_conf = Config.readStormConfig();
+        final Map storm_conf = Config.readStormConfig(storm_conf_file.toString());
         LOG.info("Testing connection to UI ...");
-        URL url = new URL("http://"+storm_conf.get("ui.host")+":"+storm_conf.get("ui.port")+"/");
+        String host = (String) storm_conf.get("ui.host");
+        if (host==null) host = "localhost";
+        URL url = new URL("http://"+host+":"+storm_conf.get("ui.port")+"/");
+        LOG.info("UI URL:"+url);
         URLConnection con = url.openConnection();
+        Assert.assertNotNull(con);
         Assert.assertNotNull(con.getContent());
     }
 }
