@@ -20,11 +20,14 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
 import backtype.storm.utils.Utils;
 
 public class Config {
+    private static final Logger LOG = LoggerFactory.getLogger(Config.class);
     final public static String MASTER_DEFAULTS_CONFIG = "master_defaults.yaml";
     final public static String MASTER_CONFIG = "master.yaml";
     final public static String MASTER_HOST = "master.host";
@@ -59,6 +62,7 @@ public class Config {
         else {
             try {
                 Yaml yaml = new Yaml();
+                LOG.info("Load storm configuration from "+stormYarnConfigPath);
                 FileInputStream is = new FileInputStream(stormYarnConfigPath);
                 Map storm_yarn_config = (Map) yaml.load(is);
                 if(storm_yarn_config!=null)

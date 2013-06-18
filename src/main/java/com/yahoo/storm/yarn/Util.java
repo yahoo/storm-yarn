@@ -65,7 +65,7 @@ class Util {
       String ret = System.getProperty("storm.home");
       if (ret == null) {
         throw new RuntimeException("storm.home is not set");
-      }
+      }       
       return ret;
   }
 
@@ -166,7 +166,7 @@ class Util {
   @SuppressWarnings("rawtypes")
   private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
           throws IOException {
-      String stormHomePath = System.getProperty("storm.home");
+      String stormHomePath = getStormHome();
       List<String> toRet = new ArrayList<String>();
       toRet.add("java");
       toRet.add("-server");
@@ -223,13 +223,10 @@ class Util {
       return toRet;
   }
   
-  private static String getConfigPath() {
-      return new File("am-config/storm.yaml").getAbsolutePath();
-  }
-
   private static String buildClassPathArgument() throws IOException {
       List<String> paths = new ArrayList<String>();
-      paths.add(new File(getConfigPath()).getParent());
+      //paths.add(new File(getStormConfigPathString()).getParent());
+      paths.add("./conf/");
       paths.add(getStormHome());
       for (String jarPath : findAllJarsInPaths(getStormHome(),
               getStormHome() + File.separator + "lib")) {
