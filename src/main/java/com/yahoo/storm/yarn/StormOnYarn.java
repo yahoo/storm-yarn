@@ -64,7 +64,7 @@ public class StormOnYarn {
     this(null, stormConf);
   }
   
-  private StormOnYarn(ApplicationId appId,
+  private StormOnYarn(ApplicationId appId, 
       @SuppressWarnings("rawtypes") Map stormConf) {
     _stormConf = stormConf;
     _appId = appId;
@@ -92,6 +92,13 @@ public class StormOnYarn {
       //TODO need a way to force this to reconnect in case of an error
       ApplicationReport report = _yarn.getApplicationReport(_appId);
       String host = report.getHost();
+      if (host == null) {
+        throw new RuntimeException("No host returned for Application Master "
+            + _appId);
+      }
+      if (_stormConf == null ) {
+        _stormConf = new HashMap<Object,Object>();
+      }
       _stormConf.put(Config.MASTER_HOST, host);
       int port = report.getRpcPort();
       _stormConf.put(Config.MASTER_THRIFT_PORT, port);
@@ -147,7 +154,7 @@ public class StormOnYarn {
     localResources.put("storm", Util.newYarnAppResource(fs, zip,
         LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
 
-    Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf);
+    Path dirDst = Util.createConfigurationFileInFs(fs, _stormConf);
     // establish a symbolic link to conf directory
     //
     localResources.put("conf", Util.newYarnAppResource(fs, dirDst));

@@ -17,6 +17,7 @@
 package com.yahoo.storm.yarn;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -64,10 +65,10 @@ public class MasterServer extends ThriftServer {
             while (client.getServiceState() == Service.STATE.STARTED &&
                 !Thread.currentThread().isInterrupted()) {
               
-              Thread.sleep(heartBeatIntervalMs); // heart beats once per second
+              Thread.sleep(heartBeatIntervalMs);
 
-              // We always send 0% progress.
-              AllocateResponse allocResponse = client.allocate(0.0f);
+              // We always send 50% progress.
+              AllocateResponse allocResponse = client.allocate(0.5f);
 
               if (allocResponse.getAMResponse().getReboot()) {
                 throw new YarnException("Got Reboot from the RM");
@@ -76,7 +77,7 @@ public class MasterServer extends ThriftServer {
               List<Container> allocatedContainers = allocResponse.getAMResponse().getAllocatedContainers();
               if (allocatedContainers.size() > 0) {
                 // Add newly allocated containers to the client.
-            	LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
+                LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
                 client.addAllocatedContainers(allocatedContainers);
                 if (client.supervisorsAreToRun()) {
                   LOG.debug("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
@@ -91,7 +92,7 @@ public class MasterServer extends ThriftServer {
                   allocResponse.getAMResponse().getCompletedContainersStatuses();
               
               if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
-            	LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
+                LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
                 client.startAllSupervisors();
               }
             
@@ -109,6 +110,7 @@ public class MasterServer extends ThriftServer {
       return thread;
     }
 
+    @SuppressWarnings("unchecked")
     public static void main(String[] args) throws Exception {
       System.err.println("Inside the AM!!!");
       LOG.info("Starting the AM!!!!");
@@ -136,6 +138,9 @@ public class MasterServer extends ThriftServer {
       Map storm_conf = Config.readStormConfig(null);
       YarnConfiguration hadoopConf = new YarnConfiguration();
       
+      final String host = InetAddress.getLocalHost().getHostName();
+      storm_conf.put("nimbus.host", host);
+      
       StormAMRMClient client =
           new StormAMRMClient(_appAttemptID, storm_conf, hadoopConf);
       client.init(hadoopConf);
@@ -145,10 +150,9 @@ public class MasterServer extends ThriftServer {
           new LinkedBlockingQueue<Container>();
 
       try {
-        InetSocketAddress addr =
-            NetUtils.createSocketAddr(hadoopConf.get(YarnConfiguration.RM_SCHEDULER_ADDRESS,
-                        YarnConfiguration.DEFAULT_RM_SCHEDULER_ADDRESS));
-        int port = Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT));
+        final int port = Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT));
+        final String target = host + ":" + port;
+        InetSocketAddress addr = NetUtils.createSocketAddr(target);
         RegisterApplicationMasterResponse resp =
             client.registerApplicationMaster(addr.getHostName(), port, null);
         LOG.info("Got a registration response "+resp);
