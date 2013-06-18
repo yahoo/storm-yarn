@@ -117,7 +117,7 @@ public class Client {
         if(command == null) {
             LOG.error("ERROR: " + commandName + " is not a supported command.");
             help.printHelpFor(null);
-            System.exit(100);
+            System.exit(1);
         }
         Options opts = command.getOpts();
         if(!opts.hasOption("h")) {
@@ -133,7 +133,7 @@ public class Client {
                 if ((remaining_args!=null)  && !remaining_args.isEmpty())
                     config_file = (String)remaining_args.get(0);
             }
-            Map storm_conf = Config.readStormConfig(config_file);            
+            Map storm_conf = Config.readStormConfig(config_file);
             command.process(cl, storm_conf);
         }
     }

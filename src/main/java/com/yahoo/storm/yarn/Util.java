@@ -66,7 +66,7 @@ class Util {
       String ret = System.getProperty("storm.home");
       if (ret == null) {
         throw new RuntimeException("storm.home is not set");
-      }       
+      }
       return ret;
   }
 

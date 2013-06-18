@@ -62,7 +62,6 @@ public class Config {
         else {
             try {
                 Yaml yaml = new Yaml();
-                LOG.info("Load storm configuration from "+stormYarnConfigPath);
                 FileInputStream is = new FileInputStream(stormYarnConfigPath);
                 Map storm_yarn_config = (Map) yaml.load(is);
                 if(storm_yarn_config!=null)

@@ -237,7 +237,7 @@ public class MasterServer extends ThriftServer {
             throw new RuntimeException(e);
         }
     }   
-    
+
     public void stop() {
         super.stop();
         if (_handler != null) {

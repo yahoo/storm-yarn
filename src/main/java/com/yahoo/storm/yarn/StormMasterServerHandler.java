@@ -56,7 +56,7 @@ public class StormMasterServerHandler implements StormMaster.Iface {
             e.printStackTrace();
         }
     }
-    
+
     @Override
     public String getStormConf() throws TException {
         LOG.info("getting configuration...");
@@ -68,7 +68,8 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     public void setStormConf(String storm_conf) throws TException {
         LOG.info("setting configuration...");
 
-        // TODO Handle supervisor config change.
+        // stop processes
+        stopSupervisors();
         stopUI();
         stopNimbus();
 
@@ -81,9 +82,10 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         _storm_conf.putAll(new_conf);
         Util.rmNulls(_storm_conf);
 
-        // TODO Handle supervisor config change.
+        // start processes
         startNimbus();
         startUI();
+        startSupervisors();
     }
 
     @Override
@@ -123,9 +125,9 @@ public class StormMasterServerHandler implements StormMaster.Iface {
                 writeConfigFile();
                 LOG.info("Running: " + Joiner.on(" ").join(buildCommands()));
                 ProcessBuilder builder =
-                        new ProcessBuilder(buildCommands())
-                .redirectError(Redirect.INHERIT)
-                .redirectOutput(Redirect.INHERIT);
+                        new ProcessBuilder(buildCommands());
+                builder.redirectError(Redirect.INHERIT);
+                builder.redirectOutput(Redirect.INHERIT);
 
                 _process = builder.start();
             } catch (IOException e) {
