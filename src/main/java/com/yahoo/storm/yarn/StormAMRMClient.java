@@ -172,7 +172,7 @@ class StormAMRMClient extends AMRMClientImpl {
     String appHome = ".storm/" + this.appAttemptId;
     
     Path dirDst =
-        Util.createConfigurationFileInFs(fs, appHome, this.storm_conf);
+        Util.createConfigurationFileInFs(fs, appHome, this.storm_conf, this.hadoopConf);
     
     localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
     

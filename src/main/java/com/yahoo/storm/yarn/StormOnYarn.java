@@ -57,30 +57,23 @@ public class StormOnYarn {
     private static final Logger LOG = LoggerFactory.getLogger(StormOnYarn.class);
 
     private YarnClient _yarn;
-    private InetSocketAddress _yarnRMaddr;
-    private String _schedulerAddr;
     private YarnConfiguration _hadoopConf;
     private ApplicationId _appId;
     @SuppressWarnings("rawtypes")
     private Map _stormConf;
     private MasterClient _client = null;
+    private InetSocketAddress _yarnRMaddr;
 
-    private StormOnYarn(InetSocketAddress yarnRMaddr,
-                String schedulerAddr,
-                @SuppressWarnings("rawtypes") Map stormConf) {
-        this(yarnRMaddr, schedulerAddr, null, stormConf);
+    private StormOnYarn(@SuppressWarnings("rawtypes") Map stormConf) {
+        this(null, stormConf);
     }
 
-    private StormOnYarn(InetSocketAddress yarnRMaddr, 
-            String schedulerAddr,
-            ApplicationId appId,
-            @SuppressWarnings("rawtypes") Map stormConf) {
-        _yarnRMaddr = yarnRMaddr;
-        _schedulerAddr = schedulerAddr;
+    private StormOnYarn(ApplicationId appId, @SuppressWarnings("rawtypes") Map stormConf) {        
+        _hadoopConf = new YarnConfiguration();  
+        _yarnRMaddr = _hadoopConf.getSocketAddr(YarnConfiguration.RM_ADDRESS, YarnConfiguration.DEFAULT_RM_ADDRESS, YarnConfiguration.DEFAULT_RM_PORT);
+        _yarn = new YarnClientImpl(_yarnRMaddr);
         _stormConf = stormConf;
         _appId = appId;
-        _hadoopConf = new YarnConfiguration();
-        _yarn = new YarnClientImpl(yarnRMaddr);
         _yarn.init(_hadoopConf);
         _yarn.start();
     }
@@ -161,9 +154,8 @@ public class StormOnYarn {
         localResources.put("storm", Util.newYarnAppResource(fs, zip,
                 LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
         
-        Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf);
+        Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf, _hadoopConf);
         // establish a symbolic link to conf directory
-        //
         localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
 
         // Set local resource info into app master container launch context
@@ -229,8 +221,6 @@ public class StormOnYarn {
         vargs.add("&&");
         vargs.add("java");
         vargs.add("-Dstorm.home=./storm/storm/");
-        vargs.add("-Dyarn.rmAddr="+_yarnRMaddr.toString());
-        vargs.add("-Dyarn.schedulerAddr="+_schedulerAddr);
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
         vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
@@ -332,15 +322,15 @@ public class StormOnYarn {
         throw new IOException("Fail to locat a JAR for class: "+my_class.getName());
     }
 
-    public static StormOnYarn launchApplication(InetSocketAddress yarnRMaddr, String schedulerAddr, String appName, String queue, 
+    public static StormOnYarn launchApplication(String appName, String queue, 
             int amMB, @SuppressWarnings("rawtypes") Map stormConf, String storm_zip_location) throws Exception {
-        StormOnYarn storm = new StormOnYarn(yarnRMaddr, schedulerAddr, stormConf);
+        StormOnYarn storm = new StormOnYarn(stormConf);
         storm.launchApp(appName, queue, amMB, storm_zip_location);
         return storm;
     }
 
-    public static StormOnYarn attachToApp(InetSocketAddress yarnRMaddr, String appId,
+    public static StormOnYarn attachToApp(String appId,
             @SuppressWarnings("rawtypes") Map stormConf) {
-        return new StormOnYarn(yarnRMaddr, null, ConverterUtils.toApplicationId(appId), stormConf);
+        return new StormOnYarn(ConverterUtils.toApplicationId(appId), stormConf);
     }
 }

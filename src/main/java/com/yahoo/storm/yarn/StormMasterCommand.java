@@ -17,12 +17,9 @@
 package com.yahoo.storm.yarn;
 
 import java.io.PrintStream;
-import java.net.InetSocketAddress;
-import java.net.SocketTimeoutException;
 import java.util.Map;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.apache.hadoop.net.NetUtils;
 import org.apache.thrift7.transport.TTransportException;
 import org.json.simple.JSONValue;
 import org.slf4j.Logger;
@@ -56,7 +53,6 @@ public class StormMasterCommand implements ClientCommand {
         //TODO can we make this required
         opts.addOption("appId", true, "(Required) The storm clusters app ID");
 
-        opts.addOption("rmAddr", true, "YARN RM's IPC address");
         opts.addOption("output", true, "Output file");
         opts.addOption("supversiors", true, "(Required for addSupervisors) The # of supervisors to be added");
         return opts;
@@ -70,15 +66,10 @@ public class StormMasterCommand implements ClientCommand {
             throw new IllegalArgumentException("-appId is required");
         }
 
-        String yarnRMaddr_str = cl.getOptionValue("rmAddr");
-        InetSocketAddress yarnRMaddr = null;
-        if (yarnRMaddr_str != null)
-            yarnRMaddr = NetUtils.createSocketAddr(yarnRMaddr_str);
-
         StormOnYarn storm = null;
         String conf_str = null;
         try {
-            storm = StormOnYarn.attachToApp(yarnRMaddr, appId, stormConf);
+            storm = StormOnYarn.attachToApp(appId, stormConf);
             StormMaster.Client client = storm.getClient();
             switch (cmd) {
             case GET_STORM_CONFIG:

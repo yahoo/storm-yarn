@@ -1,3 +1,18 @@
+/*
+ * Copyright (c) 2013 Yahoo! Inc. All Rights Reserved.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *   http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License. See accompanying LICENSE file.
+ */
 package com.yahoo.storm.yarn;
 
 import java.io.BufferedInputStream;
@@ -5,7 +20,6 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.util.Map;
@@ -14,14 +28,30 @@ import java.util.zip.ZipInputStream;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.apache.hadoop.conf.Configuration;
 import org.yaml.snakeyaml.Yaml;
 
 public class TestConfig {
     private static final Log LOG = LogFactory.getLog(TestConfig.class);
 
+    private File yarn_site_xml;
+    private File storm_conf_file;
+    private String storm_home = "./lib/storm";
+
+    synchronized File createYarnSiteConfig(Configuration yarn_conf) throws IOException {
+        yarn_site_xml = new File("./target/conf/yarn-site.xml");
+        yarn_site_xml.getParentFile().mkdirs();
+        FileOutputStream out = new FileOutputStream(yarn_site_xml);
+        OutputStreamWriter writer = new OutputStreamWriter(out);
+        yarn_conf.writeXml(writer);
+        writer.close();
+        out.close();   
+        return yarn_site_xml;
+    }
+
     @SuppressWarnings("rawtypes")
-    static File createConfigFile(Map storm_conf) throws IOException {
-        File storm_conf_file = new File("./conf/storm.yaml");
+    synchronized File createConfigFile(Map storm_conf) throws IOException {
+        storm_conf_file = new File("./conf/storm.yaml");
         storm_conf_file.getParentFile().mkdirs();
         Yaml yaml = new Yaml();
         FileOutputStream out = new FileOutputStream(storm_conf_file);
@@ -33,23 +63,20 @@ public class TestConfig {
         return storm_conf_file;
     }
 
-    static void rmConfigFile(File storm_conf_file) {
-        if (storm_conf_file != null) {
-            storm_conf_file.delete();
-            storm_conf_file.getParentFile().deleteOnExit();
-        }
-
-        deleteFolder(new File("./lib/storm"));
+    void cleanup() {
+        if (storm_conf_file != null) 
+            deleteFolder(storm_conf_file);
+        deleteFolder(new File(storm_home));
     }
 
-    static String stormHomePath() throws IOException {
+    synchronized String stormHomePath() throws IOException {
         unzipFile("./lib/storm.zip");
-        String storm_home = "./lib/storm";
+        Runtime.getRuntime().exec( "chmod +x ./lib/storm/bin/storm");
         System.setProperty("storm.home", storm_home);
         return storm_home;
     }
 
-    private static void unzipFile(String filePath){
+    private void unzipFile(String filePath){
         FileInputStream fis = null;
         ZipInputStream zipIs = null;
         ZipEntry zEntry = null;
@@ -86,7 +113,7 @@ public class TestConfig {
         }
     }
 
-    private static void deleteFolder(File file) {
+    private void deleteFolder(File file) {
         if (file.isDirectory()) {
             //directory is empty, then delete it
             if(file.list().length==0){

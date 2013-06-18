@@ -39,7 +39,6 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.service.Service;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
-import org.apache.thrift7.TException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -139,12 +138,6 @@ public class MasterServer extends ThriftServer {
         Util.rmNulls(storm_conf);
 
         YarnConfiguration hadoopConf = new YarnConfiguration();
-        String rmAddr = System.getProperty("yarn.rmAddr");
-        if (rmAddr != null) 
-            hadoopConf.set(YarnConfiguration.RM_ADDRESS, rmAddr);
-        String schedulerAddr = System.getProperty("yarn.schedulerAddr");
-        if (schedulerAddr != null)
-            hadoopConf.set(YarnConfiguration.RM_SCHEDULER_ADDRESS, schedulerAddr);
 
         StormAMRMClient rmClient =
                 new StormAMRMClient(_appAttemptID, storm_conf, hadoopConf);

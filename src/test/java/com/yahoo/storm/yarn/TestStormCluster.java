@@ -17,11 +17,7 @@
 package com.yahoo.storm.yarn;
 
 import java.io.File;
-import java.io.FileWriter;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.net.BindException;
-import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.Socket;
@@ -30,15 +26,11 @@ import java.util.Map;
 
 import junit.framework.Assert;
 
-import org.apache.thrift7.TException;
-import org.apache.zookeeper.server.NIOServerCnxnFactory;
-import org.apache.zookeeper.server.ZooKeeperServer;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.Yaml;
 
 import static org.mockito.Mockito.mock;
 
@@ -51,6 +43,7 @@ public class TestStormCluster {
     private static MasterServer server = null;
     private static MasterClient client = null;
     private static File storm_conf_file = null;
+    private static TestConfig testConf = new TestConfig(); 
     
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @BeforeClass
@@ -59,7 +52,7 @@ public class TestStormCluster {
         zkServer = new EmbeddedZKServer();
         zkServer.start();
 
-        String storm_home = TestConfig.stormHomePath();
+        String storm_home = testConf.stormHomePath();
         if (storm_home == null) {
             throw new RuntimeException("Storm home was not found."
                     + "  Make sure to include storm in the PATH.");
@@ -69,7 +62,7 @@ public class TestStormCluster {
         //simple configuration
         final Map storm_conf = Config.readStormConfig("src/main/resources/master_defaults.yaml");
         storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
-        storm_conf_file = TestConfig.createConfigFile(storm_conf);
+        storm_conf_file = testConf.createConfigFile(storm_conf);
         
         confirmNothingIsRunning(storm_conf);
 
@@ -170,31 +163,6 @@ public class TestStormCluster {
         
     }
 
-    private static String getStormHomePath() throws IOException {
-        String pathEnvString = System.getenv().get("PATH");
-        for (String pathStr : pathEnvString.split(File.pathSeparator)) {
-            // Is storm binary located here?  Path start = fs.getPath(pathStr);
-            File f = new File(pathStr);
-            if (f.isDirectory()) {
-                File[] files = f.listFiles(new FilenameFilter() {
-                    @Override
-                    public boolean accept(File dir, String name) {
-                        if (name.equals("storm")) {
-                            return true;
-                        }
-                        return false;
-                    }
-                });
-                if (files.length > 0) {
-                    File canonicalPath = new File(pathStr + File.separator +
-                            "storm").getCanonicalFile();
-                    return (canonicalPath.getParentFile().getParent());
-                }
-            }
-        }
-        return null;
-    }
-
     @AfterClass
     public static void tearDown() {        
         //stop client
@@ -218,7 +186,7 @@ public class TestStormCluster {
         }
         
         //remove configuration file
-        TestConfig.rmConfigFile(storm_conf_file);
+        testConf.cleanup();
 
         //shutdown Zookeeper server
         if (zkServer != null) {

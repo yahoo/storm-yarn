@@ -17,12 +17,10 @@
 package com.yahoo.storm.yarn;
 
 import java.io.PrintStream;
-import java.net.InetSocketAddress;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
-import org.apache.hadoop.net.NetUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,8 +34,6 @@ public class LaunchCommand implements ClientCommand {
     Options opts = new Options();
     opts.addOption("appname", true, "Application Name. Default value - Storm-on-Yarn");
     opts.addOption("queue", true, "RM Queue in which this application is to be submitted");
-    opts.addOption("rmAddr", true, "YARN RM's IPC address");
-    opts.addOption("schedulerAddr", true, "YARN scheduler's IPC address");
     opts.addOption("stormHome", true, "Storm Home Directory");
     opts.addOption("output", true, "Output file");
     opts.addOption("stormZip", true, "file path of storm.zip");
@@ -49,12 +45,6 @@ public class LaunchCommand implements ClientCommand {
     String appName = cl.getOptionValue("appname", "Storm-on-Yarn");
     String queue = cl.getOptionValue("queue", "default");
     
-    String schedulerAddr = cl.getOptionValue("schedulerAddr");
-    String yarnRMaddr_str = cl.getOptionValue("rmAddr");
-    InetSocketAddress yarnRMaddr = null;
-    if (yarnRMaddr_str != null)
-        yarnRMaddr = NetUtils.createSocketAddr(yarnRMaddr_str);
-    
     String storm_zip_location = cl.getOptionValue("stormZip");
     
     Integer amSize = (Integer) stormConf.get(Config.MASTER_SIZE_MB);
@@ -65,20 +55,21 @@ public class LaunchCommand implements ClientCommand {
     
     StormOnYarn storm = null;
     try {
-      LOG.debug("yarnRMaddr:"+yarnRMaddr);
-      LOG.debug("appName:"+appName);
-      storm = StormOnYarn.launchApplication(yarnRMaddr, 
-                  schedulerAddr, 
-                  appName, 
+      storm = StormOnYarn.launchApplication(appName, 
                   queue, amSize, 
                   stormConf, 
                   storm_zip_location);
       LOG.debug("Submitted application's ID:" + storm.getAppId());
 
       String output = cl.getOptionValue("output");
-      PrintStream os = (output!=null? new PrintStream(output) : System.out);
-      os.println(storm.getAppId());
-      if (output != null) os.close();
+      if (output == null)
+          System.out.println(storm.getAppId());
+      else {
+          PrintStream os = new PrintStream(output);
+          os.println(storm.getAppId());
+          os.flush();
+          os.close();
+      }
     } finally {
       if (storm != null) {
         storm.stop();

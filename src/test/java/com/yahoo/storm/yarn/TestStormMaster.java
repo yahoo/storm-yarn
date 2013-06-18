@@ -15,11 +15,7 @@
  */
 package com.yahoo.storm.yarn;
 
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.FilenameFilter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.util.Map;
 
 import org.apache.commons.logging.Log;
@@ -30,7 +26,6 @@ import org.apache.hadoop.yarn.util.Records;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.yaml.snakeyaml.Yaml;
 
 import com.yahoo.storm.yarn.generated.StormMaster;
 
@@ -40,7 +35,7 @@ public class TestStormMaster {
     private static EmbeddedZKServer zkServer;
     private static MasterServer server = null;
     private static MasterClient client = null;
-    private static File storm_conf_file = null;
+    private static TestConfig testConf = new TestConfig(); 
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @BeforeClass
@@ -52,9 +47,8 @@ public class TestStormMaster {
         //simple configuration
         final Map storm_conf = Config.readStormConfig("src/main/resources/master_defaults.yaml");
         storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
-        storm_conf_file = TestConfig.createConfigFile(storm_conf);
         
-        String storm_home = TestConfig.stormHomePath();
+        String storm_home = testConf.stormHomePath();
         if (storm_home == null) {
             throw new RuntimeException("Storm home was not found."
                     + "  Make sure to include storm in the PATH.");
@@ -102,7 +96,7 @@ public class TestStormMaster {
         }
 
         //remove configuration file
-        TestConfig.rmConfigFile(storm_conf_file);
+        testConf.cleanup();
         
         //shutdown Zookeeper server
         if (zkServer != null) {
