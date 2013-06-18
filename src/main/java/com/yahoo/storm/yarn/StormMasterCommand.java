@@ -18,16 +18,21 @@ package com.yahoo.storm.yarn;
 
 import java.io.PrintStream;
 import java.net.InetSocketAddress;
+import java.net.SocketTimeoutException;
 import java.util.Map;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.net.NetUtils;
+import org.apache.thrift7.transport.TTransportException;
 import org.json.simple.JSONValue;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.yahoo.storm.yarn.Client.ClientCommand;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class StormMasterCommand implements ClientCommand {
+    private static final Logger LOG = LoggerFactory.getLogger(StormMasterCommand.class);
     enum COMMAND {
         GET_STORM_CONFIG,  
         SET_STORM_CONFIG,  
@@ -50,7 +55,7 @@ public class StormMasterCommand implements ClientCommand {
         Options opts = new Options();
         //TODO can we make this required
         opts.addOption("appId", true, "(Required) The storm clusters app ID");
-        
+
         opts.addOption("rmAddr", true, "YARN RM's IPC address");
         opts.addOption("output", true, "Output file");
         opts.addOption("supversiors", true, "(Required for addSupervisors) The # of supervisors to be added");
@@ -64,57 +69,96 @@ public class StormMasterCommand implements ClientCommand {
         if(appId == null) {
             throw new IllegalArgumentException("-appId is required");
         }
-        
+
         String yarnRMaddr_str = cl.getOptionValue("rmAddr");
         InetSocketAddress yarnRMaddr = null;
         if (yarnRMaddr_str != null)
             yarnRMaddr = NetUtils.createSocketAddr(yarnRMaddr_str);
-        
+
         StormOnYarn storm = null;
+        String conf_str = null;
         try {
             storm = StormOnYarn.attachToApp(yarnRMaddr, appId, stormConf);
             StormMaster.Client client = storm.getClient();
             switch (cmd) {
             case GET_STORM_CONFIG:
-                String conf_str = client.getStormConf();                  
-                String output = cl.getOptionValue("output");
-                PrintStream os = (output!=null? new PrintStream(output) : System.out);
-                os.println(conf_str);
-                if (output != null) os.close();
+                try { 
+                    conf_str = client.getStormConf();                  
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
+                if (conf_str != null) {
+                    String output = cl.getOptionValue("output");
+                    PrintStream os = (output!=null? new PrintStream(output) : System.out);
+                    os.println(conf_str);
+                    if (output != null) os.close();
+                }
                 break;
-                
+
             case SET_STORM_CONFIG:
                 String storm_conf_str = JSONValue.toJSONString(stormConf);
-                client.setStormConf(storm_conf_str);  
+                try { 
+                    client.setStormConf(storm_conf_str);  
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
                 break;
 
             case ADD_SUPERVISORS:
                 String supversiors = cl.getOptionValue("supversiors", "1");
-                client.addSupervisors(new Integer(supversiors).intValue());  
+                try {
+                    client.addSupervisors(new Integer(supversiors).intValue());  
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
                 break;
 
             case START_NIMBUS:
-                client.startNimbus();
+                try {
+                    client.startNimbus();
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
                 break;
 
             case STOP_NIMBUS:
-                client.stopNimbus();
+                try {
+                    client.stopNimbus();
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
                 break;
 
             case START_UI:
-                client.startUI();
+                try {
+                    client.startUI();
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
                 break;
 
             case STOP_UI:
-                client.stopUI();
+                try {
+                    client.stopUI();
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
                 break;
 
             case START_SUPERVISORS:
-                client.startSupervisors();
+                try {
+                    client.startSupervisors();
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
                 break;
 
             case STOP_SUPERVISORS:
-                client.stopSupervisors();
+                try {
+                    client.stopSupervisors();
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
                 break;
             }
         } finally {
@@ -123,5 +167,4 @@ public class StormMasterCommand implements ClientCommand {
             }
         }
     }
-
 }

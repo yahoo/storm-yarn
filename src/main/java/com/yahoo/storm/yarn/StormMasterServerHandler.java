@@ -41,6 +41,7 @@ public class StormMasterServerHandler implements StormMaster.Iface {
 
     StormMasterServerHandler(@SuppressWarnings("rawtypes") Map storm_conf, StormAMRMClient client) {
         _storm_conf = storm_conf;
+        Util.rmNulls(_storm_conf);
         _client = client;
         _stormConfigPath = new File("am-config/storm.yaml").getAbsolutePath();
     }
@@ -59,7 +60,6 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     @Override
     public String getStormConf() throws TException {
         LOG.info("getting configuration...");
-        Util.rmNulls(_storm_conf);
         return JSONValue.toJSONString(_storm_conf);
     }
 
@@ -167,9 +167,9 @@ public class StormMasterServerHandler implements StormMaster.Iface {
 
     @Override
     public void stopNimbus() {
-        LOG.info("stopping nimbus...");
         synchronized(this) {
             if (nimbusProcess == null) return;
+            LOG.info("stopping nimbus...");
             if (!nimbusProcess.isAlive()){
                 LOG.info("Received a request to stop nimbus, but it is not running now");
                 return;
@@ -194,9 +194,9 @@ public class StormMasterServerHandler implements StormMaster.Iface {
 
     @Override
     public void stopUI() throws TException {
-        LOG.info("stopping UI...");
         synchronized(this) {
             if (uiProcess == null) return;
+            LOG.info("stopping UI...");
             if (!uiProcess.isAlive()){
                 LOG.info("Received a request to stop UI, but it is not running now");
                 return;

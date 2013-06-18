@@ -45,11 +45,12 @@ import static org.mockito.Mockito.mock;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class TestStormCluster {
-    static final Logger LOG = LoggerFactory.getLogger(TestStormMaster.class);
+    static final Logger LOG = LoggerFactory.getLogger(TestStormCluster.class);
     
     private static EmbeddedZKServer zkServer;
     private static MasterServer server = null;
     private static MasterClient client = null;
+    private static File storm_conf_file = null;
     
     @SuppressWarnings({ "unchecked", "rawtypes" })
     @BeforeClass
@@ -58,33 +59,32 @@ public class TestStormCluster {
         zkServer = new EmbeddedZKServer();
         zkServer.start();
 
-        String storm_home = getStormHomePath();
+        String storm_home = TestConfig.stormHomePath();
         if (storm_home == null) {
             throw new RuntimeException("Storm home was not found."
                     + "  Make sure to include storm in the PATH.");
         }
         LOG.info("Will be using storm found on PATH at "+storm_home);
-        System.setProperty("storm.home", storm_home);
 
         //simple configuration
-        final Map storm_conf = Config.readStormConfig(null);
+        final Map storm_conf = Config.readStormConfig("src/main/resources/master_defaults.yaml");
         storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
-        LOG.info("Storm server attaching to port: "+ storm_conf.get(Config.MASTER_THRIFT_PORT));
-        LOG.info("Save configuration file at "+storm_home+"/storm.yaml");
-        File configFile = new File("am-config/storm.yaml");
-        Yaml yaml = new Yaml();
-        yaml.dump(storm_conf, new FileWriter(configFile));
+        storm_conf_file = TestConfig.createConfigFile(storm_conf);
         
+        confirmNothingIsRunning(storm_conf);
+
         StormAMRMClient mockClient = mock(StormAMRMClient.class);
         server = new MasterServer(storm_conf, mockClient);
-
-        confirmNothingIsRunning(storm_conf);
 
         //launch server
         new Thread(new Runnable() {
             @Override
             public void run() {
-                server.serve();
+                try {
+                    server.serve();
+                } catch (Exception ex) {
+                    tearDown();
+                }
             }
         }).start();
 
@@ -190,7 +190,7 @@ public class TestStormCluster {
     }
 
     @AfterClass
-    public static void tearDown() throws IOException {
+    public static void tearDown() {        
         //stop client
         if (client != null) {
             StormMaster.Client master_client = client.getClient();
@@ -198,9 +198,8 @@ public class TestStormCluster {
                 master_client.stopSupervisors();
                 master_client.stopNimbus();
                 master_client.stopUI();
-            } catch (TException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            } catch (Exception e) {
+                LOG.info("failure in tearn down:"+e.toString());
             }
             client.close();
             client = null;
@@ -212,6 +211,9 @@ public class TestStormCluster {
             server = null;
         }
         
+        //remove configuration file
+        TestConfig.rmConfigFile(storm_conf_file);
+
         //shutdown Zookeeper server
         if (zkServer != null) {
             zkServer.stop();
@@ -223,7 +225,7 @@ public class TestStormCluster {
     public void testUI() throws Exception {
         LOG.info("Testing UI");
         @SuppressWarnings("rawtypes")
-        final Map storm_conf = Config.readStormConfig(null);
+        final Map storm_conf = Config.readStormConfig();
         LOG.info("Testing connection to UI ...");
         URL url = new URL("http://"+storm_conf.get("ui.host")+":"+storm_conf.get("ui.port")+"/");
         URLConnection con = url.openConnection();

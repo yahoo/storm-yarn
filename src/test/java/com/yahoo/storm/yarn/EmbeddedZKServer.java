@@ -21,7 +21,7 @@ public class EmbeddedZKServer {
         File localfile = new File("./target/zookeeper.data");
         ZooKeeperServer zkServer;
         zkServer = new ZooKeeperServer(localfile, localfile, 2000);
-        NIOServerCnxnFactory zkFactory = new NIOServerCnxnFactory();
+        zkFactory = new NIOServerCnxnFactory();
         for (zkport = 60000; true; zkport++)
             try {
                 zkFactory.configure(new InetSocketAddress(zkport), 10);
@@ -38,7 +38,7 @@ public class EmbeddedZKServer {
     }
     
     void stop() {
-        LOG.info("shutdown embedded zookeeper server");
+        LOG.info("shutdown embedded zookeeper server with port "+zkport);
         zkFactory.shutdown();
         zkFactory = null;
     }

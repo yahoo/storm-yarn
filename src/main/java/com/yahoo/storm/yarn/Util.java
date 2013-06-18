@@ -223,13 +223,9 @@ class Util {
       return toRet;
   }
   
-  private static String getConfigPath() {
-      return new File("am-config/storm.yaml").getAbsolutePath();
-  }
-
   private static String buildClassPathArgument() throws IOException {
       List<String> paths = new ArrayList<String>();
-      //paths.add(new File(getConfigPath()).getParent());
+      //paths.add(new File(getStormConfigPathString()).getParent());
       paths.add("./conf/");
       paths.add(getStormHome());
       for (String jarPath : findAllJarsInPaths(getStormHome(),

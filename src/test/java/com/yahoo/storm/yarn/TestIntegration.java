@@ -100,17 +100,6 @@ public class TestIntegration {
         }
     }
 
-    private static int zkBind(NIOServerCnxnFactory zkFactory) throws IOException {
-        for (int port = 2000; port < 65535; port++)
-            try {
-                zkFactory.configure(new InetSocketAddress(port), 10);
-                return port;
-            } catch (BindException e) {
-                continue;
-            } 
-        throw new IOException("Failed to find a port for Zookeeper server to bind");
-    }
-
     private static void sleep(int i) {
         try {
             Thread.sleep(i);
@@ -199,6 +188,7 @@ public class TestIntegration {
             yarnCluster.stop();
             yarnCluster = null;
         }
+        sleep(1000);
         
         //shutdown Zookeeper server
         if (zkServer != null) {
