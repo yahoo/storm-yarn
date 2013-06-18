@@ -17,6 +17,7 @@
 package com.yahoo.storm.yarn;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.yarn.YarnException;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
@@ -53,64 +55,62 @@ public class MasterServer extends ThriftServer {
     private static ApplicationAttemptId _appAttemptID;
     private StormMasterServerHandler _handler;
 
-    private Thread initAndStartHeartbeat(final StormAMRMClient client,
+    private static Thread initAndStartHeartbeat(final StormAMRMClient client,
             final BlockingQueue<Container> launcherQueue,
             final int heartBeatIntervalMs) {
         Thread thread = new Thread() {
-            @Override
-            public void run() {
-                try {
-                    while (client.getServiceState() == Service.STATE.STARTED &&
-                            !Thread.currentThread().isInterrupted()) {
+        @Override
+        public void run() {
+          try {
+            while (client.getServiceState() == Service.STATE.STARTED &&
+                !Thread.currentThread().isInterrupted()) {
+              
+              Thread.sleep(heartBeatIntervalMs);
 
-                        Thread.sleep(heartBeatIntervalMs); // heart beats once per second
+              // We always send 50% progress.
+              AllocateResponse allocResponse = client.allocate(0.5f);
 
-                        // We always send 0% progress.
-                        AllocateResponse allocResponse = client.allocate(0.0f);
+              if (allocResponse.getAMResponse().getReboot()) {
+                throw new YarnException("Got Reboot from the RM");
+              }
 
-                        if (allocResponse.getAMResponse().getReboot()) {
-                            LOG.info("Got Reboot from the RM");
-                            _handler.stop();
-                            System.exit(0);
-                        }
-
-                        List<Container> allocatedContainers = allocResponse.getAMResponse().getAllocatedContainers();
-                        if (allocatedContainers.size() > 0) {
-                            // Add newly allocated containers to the client.
-                            LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
-                            client.addAllocatedContainers(allocatedContainers);
-                            if (client.supervisorsAreToRun()) {
-                                LOG.debug("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
-                                launcherQueue.addAll(allocatedContainers);
-                            } else {
-                                LOG.debug("HB: Supervisors are to stop, so releasing all containers...");
-                                client.stopAllSupervisors();
-                            }
-                        }
-
-                        List<ContainerStatus> completedContainers =
-                                allocResponse.getAMResponse().getCompletedContainersStatuses();
-
-                        if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
-                            LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
-                            client.startAllSupervisors();
-                        }
-
-                    }
-                } catch (Throwable t) {
-                    // Something happened we could not handle.  Make sure the AM goes
-                    // down so that we are not surprised later on that our heart
-                    // stopped..
-                    LOG.warn("Unexpected exception "+t.toString(), t);
-                    _handler.stop();
-                    System.exit(1);
+              List<Container> allocatedContainers = allocResponse.getAMResponse().getAllocatedContainers();
+              if (allocatedContainers.size() > 0) {
+                // Add newly allocated containers to the client.
+                LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
+                client.addAllocatedContainers(allocatedContainers);
+                if (client.supervisorsAreToRun()) {
+                  LOG.debug("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
+                  launcherQueue.addAll(allocatedContainers);
+                } else {
+                  LOG.debug("HB: Supervisors are to stop, so releasing all containers...");
+                  client.stopAllSupervisors();
                 }
+              }
+
+              List<ContainerStatus> completedContainers =
+                  allocResponse.getAMResponse().getCompletedContainersStatuses();
+              
+              if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
+                LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
+                client.startAllSupervisors();
+              }
+            
             }
-        };
-        thread.start();
-        return thread;
+          } catch (Throwable t) {
+            // Something happened we could not handle.  Make sure the AM goes
+            // down so that we are not surprised later on that our heart
+            // stopped..
+            t.printStackTrace();
+            System.exit(1);
+          }
+        }
+      };
+      thread.start();
+      return thread;
     }
 
+    @SuppressWarnings("unchecked")
     public static void main(String[] args) throws Exception {
         LOG.info("Starting the AM!!!!");
 
@@ -139,6 +139,9 @@ public class MasterServer extends ThriftServer {
 
         YarnConfiguration hadoopConf = new YarnConfiguration();
 
+        final String host = InetAddress.getLocalHost().getHostName();
+        storm_conf.put("nimbus.host", host);
+
         StormAMRMClient rmClient =
                 new StormAMRMClient(_appAttemptID, storm_conf, hadoopConf);
         rmClient.init(hadoopConf);
@@ -148,10 +151,9 @@ public class MasterServer extends ThriftServer {
 
         MasterServer server = new MasterServer(storm_conf, rmClient);;
         try {
-            InetSocketAddress addr =
-                    NetUtils.createSocketAddr(hadoopConf.get(YarnConfiguration.RM_SCHEDULER_ADDRESS,
-                            YarnConfiguration.DEFAULT_RM_SCHEDULER_ADDRESS));
-            int port = Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT));
+            final int port = Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT));
+            final String target = host + ":" + port;
+            InetSocketAddress addr = NetUtils.createSocketAddr(target);
             RegisterApplicationMasterResponse resp =
                     rmClient.registerApplicationMaster(addr.getHostName(), port, null);
             LOG.info("Got a registration response "+resp);
@@ -225,18 +227,21 @@ public class MasterServer extends ThriftServer {
                 Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT)));
         try {
             _handler = handler;
+            
+            LOG.info("launch nimbus");
             _handler.startNimbus();
+
+            LOG.info("launch ui");
             _handler.startUI();
 
             int numSupervisors =
                     Utils.getInt(storm_conf.get(Config.MASTER_NUM_SUPERVISORS));
             LOG.info("launch " + numSupervisors + " supervisors");
             _handler.addSupervisors(numSupervisors);
-
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
-    }   
+    }
 
     public void stop() {
         super.stop();
