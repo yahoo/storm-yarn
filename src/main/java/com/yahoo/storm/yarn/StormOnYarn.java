@@ -146,8 +146,9 @@ public class StormOnYarn {
         String appMasterJar = findContainingJar(MasterServer.class);
         FileSystem fs = FileSystem.get(_hadoopConf);
         Path src = new Path(appMasterJar);
-        String appHome =  ".storm/" + _appId;
-        Path dst = new Path(fs.getHomeDirectory(), appHome + "/AppMaster.jar");
+        String appHome =  Util.getApplicationHomeForId(_appId.toString());
+        Path dst = new Path(fs.getHomeDirectory(), 
+                appHome + Path.SEPARATOR + "AppMaster.jar");
         fs.copyFromLocalFile(false, true, src, dst);
         localResources.put("AppMaster.jar", Util.newYarnAppResource(fs, dst));
 
@@ -161,7 +162,7 @@ public class StormOnYarn {
         localResources.put("storm", Util.newYarnAppResource(fs, zip,
                 LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
         
-        Path dirDst = Util.createConfigurationFileInFs(fs, _stormConf, _hadoopConf);
+        Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf, _hadoopConf);
         // establish a symbolic link to conf directory
         localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
 

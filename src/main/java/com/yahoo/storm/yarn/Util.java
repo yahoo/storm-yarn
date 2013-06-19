@@ -45,6 +45,7 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ContainerManager;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerToken;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -62,7 +63,8 @@ import com.google.common.base.Joiner;
 
 class Util {
 
-  private static final String STORM_CONF_PATH_STRING = "conf/storm.yaml";
+  private static final String STORM_CONF_PATH_STRING = 
+      "conf" + Path.SEPARATOR + "/storm.yaml";
     
   static String getStormHome() {
       String ret = System.getProperty("storm.home");
@@ -113,9 +115,11 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static Path createConfigurationFileInFs(FileSystem fs,
-          Map stormConf, YarnConfiguration yarnConf) throws IOException {
+          String appHome, Map stormConf, YarnConfiguration yarnConf) 
+          throws IOException {
     // dump stringwriter's content into FS conf/storm.yaml
-    Path confDst = new Path(STORM_CONF_PATH_STRING);
+    Path confDst = new Path(fs.getHomeDirectory(),
+            appHome + Path.SEPARATOR + STORM_CONF_PATH_STRING);
     Path dirDst = confDst.getParent();
     fs.mkdirs(dirDst);
     
@@ -271,4 +275,13 @@ class Util {
       }
       return toRet;
   }
+
+  static String getApplicationHomeForId(String id) {
+      if (id.isEmpty()) {
+          throw new IllegalArgumentException(
+                  "The ID of the application cannot be empty.");
+      }
+      return ".storm" + Path.SEPARATOR + id;
+  }
 }
+
