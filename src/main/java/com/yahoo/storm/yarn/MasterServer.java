@@ -102,7 +102,7 @@ public class MasterServer extends ThriftServer {
             // Something happened we could not handle.  Make sure the AM goes
             // down so that we are not surprised later on that our heart
             // stopped..
-            t.printStackTrace();
+            LOG.error("Unhandled error in AM: ", t);
             _handler.stop();
             System.exit(1);
           }
