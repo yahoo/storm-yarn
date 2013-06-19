@@ -75,6 +75,7 @@ public class Client {
             for(String command: args) {
                 ClientCommand c = _commands.get(command);
                 if (c != null) {
+                    //TODO Show any arguments to the commands.
                     f.printHelp(command, c.getOpts());
                 } else {
                     System.err.println("ERROR: " + c + " is not a supported command.");
@@ -130,7 +131,7 @@ public class Client {
             String config_file = null;
             if (!commandName.equals("help")) {
                 List remaining_args = cl.getArgList();
-                if ((remaining_args!=null)  && !remaining_args.isEmpty())
+                if (remaining_args!=null && !remaining_args.isEmpty())
                     config_file = (String)remaining_args.get(0);
             }
             Map storm_conf = Config.readStormConfig(config_file);

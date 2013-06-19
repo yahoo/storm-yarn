@@ -97,6 +97,13 @@ public class StormOnYarn {
             ApplicationReport report = _yarn.getApplicationReport(_appId);
             LOG.info("application report for "+_appId+" :"+report.getHost()+":"+report.getRpcPort());
             String host = report.getHost();
+            if (host == null) {
+              throw new RuntimeException(
+                  "No host returned for Application Master " + _appId);
+            }
+            if (_stormConf == null ) {
+              _stormConf = new HashMap<Object,Object>();
+            }
             _stormConf.put(Config.MASTER_HOST, host);
             int port = report.getRpcPort();
             _stormConf.put(Config.MASTER_THRIFT_PORT, port);
@@ -139,8 +146,9 @@ public class StormOnYarn {
         String appMasterJar = findContainingJar(MasterServer.class);
         FileSystem fs = FileSystem.get(_hadoopConf);
         Path src = new Path(appMasterJar);
-        String appHome =  ".storm/" + _appId;
-        Path dst = new Path(fs.getHomeDirectory(), appHome + "/AppMaster.jar");
+        String appHome =  Util.getApplicationHomeForId(_appId.toString());
+        Path dst = new Path(fs.getHomeDirectory(), 
+                appHome + Path.SEPARATOR + "AppMaster.jar");
         fs.copyFromLocalFile(false, true, src, dst);
         localResources.put("AppMaster.jar", Util.newYarnAppResource(fs, dst));
 

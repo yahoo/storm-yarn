@@ -67,7 +67,7 @@ class StormAMRMClient extends AMRMClientImpl {
   private Resource maxResourceCapability;
 
   public StormAMRMClient(ApplicationAttemptId appAttemptId,
-		  @SuppressWarnings("rawtypes") Map storm_conf, YarnConfiguration hadoopConf) {
+      @SuppressWarnings("rawtypes") Map storm_conf, YarnConfiguration hadoopConf) {
     super(appAttemptId);
     this.storm_conf = storm_conf;
     this.hadoopConf = hadoopConf;
@@ -168,11 +168,11 @@ class StormAMRMClient extends AMRMClientImpl {
     FileSystem fs = FileSystem.get(this.hadoopConf);
     localResources.put("storm", Util.newYarnAppResource(fs, zip,
         LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
+
+    String appHome = Util.getApplicationHomeForId(this.appAttemptId.toString());
     
-    String appHome = ".storm/" + this.appAttemptId;
-    
-    Path dirDst =
-        Util.createConfigurationFileInFs(fs, appHome, this.storm_conf, this.hadoopConf);
+    Path dirDst = Util.createConfigurationFileInFs(
+            fs, appHome, this.storm_conf, this.hadoopConf);
     
     localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
     
