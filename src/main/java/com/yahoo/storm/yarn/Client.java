@@ -134,10 +134,10 @@ public class Client {
                 if (remaining_args!=null && !remaining_args.isEmpty())
                     config_file = (String)remaining_args.get(0);
             }
-            Map storm_conf = null;
-            if (config_file != null) {
-                storm_conf = Config.readStormConfig(config_file);
-            }
+            Map storm_conf = (config_file != null ) ? 
+                Config.readStormConfig(config_file) : 
+                new HashMap<Object,Object>();
+
             command.process(cl, storm_conf);
         }
     }
