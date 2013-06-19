@@ -41,8 +41,7 @@ public class LaunchCommand implements ClientCommand {
   }
 
   @Override
-  public void process(CommandLine cl, 
-      @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
+  public void process(CommandLine cl, @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
     String appName = cl.getOptionValue("appname", "Storm-on-Yarn");
     String queue = cl.getOptionValue("queue", "default");
     
