@@ -64,7 +64,7 @@ import com.google.common.base.Joiner;
 class Util {
 
   private static final String STORM_CONF_PATH_STRING = 
-      "conf" + Path.SEPARATOR + "/storm.yaml";
+      "conf" + Path.SEPARATOR + "storm.yaml";
     
   static String getStormHome() {
       String ret = System.getProperty("storm.home");
