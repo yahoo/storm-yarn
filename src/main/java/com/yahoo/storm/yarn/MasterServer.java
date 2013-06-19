@@ -71,8 +71,9 @@ public class MasterServer extends ThriftServer {
               AllocateResponse allocResponse = client.allocate(0.5f);
 
               if (allocResponse.getAMResponse().getReboot()) {
+                LOG.info("Got Reboot from the RM");
                 _handler.stop();
-                throw new YarnException("Got Reboot from the RM");
+                System.exit(0);
               }
 
               List<Container> allocatedContainers = allocResponse.getAMResponse().getAllocatedContainers();
