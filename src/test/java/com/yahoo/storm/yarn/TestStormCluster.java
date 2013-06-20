@@ -17,7 +17,6 @@
 package com.yahoo.storm.yarn;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLConnection;
@@ -27,7 +26,6 @@ import java.util.Map;
 
 import junit.framework.Assert;
 
-import org.apache.thrift7.TException;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -39,36 +37,47 @@ import static org.mockito.Mockito.mock;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class TestStormCluster {
-    static final Logger LOG = LoggerFactory.getLogger(TestStormMaster.class);
+    static final Logger LOG = LoggerFactory.getLogger(TestStormCluster.class);
     
-    protected static MasterServer server = null;
-    protected static MasterClient client = null;
+    private static EmbeddedZKServer zkServer;
+    private static MasterServer server = null;
+    private static MasterClient client = null;
+    private static File storm_conf_file = null;
+    private static TestConfig testConf = new TestConfig(); 
     
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     @BeforeClass
     public static void setup() throws InterruptedException, IOException {
+        //start embedded ZK server
+        zkServer = new EmbeddedZKServer();
+        zkServer.start();
 
-        String storm_home = getStormHomePath();
+        String storm_home = testConf.stormHomePath();
         if (storm_home == null) {
             throw new RuntimeException("Storm home was not found."
                     + "  Make sure to include storm in the PATH.");
         }
         LOG.info("Will be using storm found on PATH at "+storm_home);
-        System.setProperty("storm.home", storm_home);
 
         //simple configuration
-        @SuppressWarnings("rawtypes")
-        final Map storm_conf = Config.readStormConfig(null);
-        LOG.info("Storm server attaching to port: "+ storm_conf.get(Config.MASTER_THRIFT_PORT));
+        final Map storm_conf = Config.readStormConfig("src/main/resources/master_defaults.yaml");
+        storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
+        storm_conf_file = testConf.createConfigFile(storm_conf);
+        
+        confirmNothingIsRunning(storm_conf);
+
         StormAMRMClient mockClient = mock(StormAMRMClient.class);
         server = new MasterServer(storm_conf, mockClient);
-
-        confirmNothingIsRunning(storm_conf);
 
         //launch server
         new Thread(new Runnable() {
             @Override
             public void run() {
-                server.serve();
+                try {
+                    server.serve();
+                } catch (Exception ex) {
+                    tearDown();
+                }
             }
         }).start();
 
@@ -87,6 +96,12 @@ public class TestStormCluster {
                 checkNimbusConnection(storm_conf);
             } catch (IOException e) {
                 LOG.warn("Still cannot connect to nimbus server.");
+                continue;
+            }
+            try {
+                checkUiConnection(storm_conf);
+            } catch (IOException e) {
+                LOG.warn("Still cannot connect to UI server.");
                 continue;
             }
 
@@ -148,42 +163,17 @@ public class TestStormCluster {
         
     }
 
-    private static String getStormHomePath() throws IOException {
-        String pathEnvString = System.getenv().get("PATH");
-        for (String pathStr : pathEnvString.split(File.pathSeparator)) {
-            // Is storm binary located here?  Path start = fs.getPath(pathStr);
-            File f = new File(pathStr);
-            if (f.isDirectory()) {
-                File[] files = f.listFiles(new FilenameFilter() {
-                    @Override
-                    public boolean accept(File dir, String name) {
-                        if (name.equals("storm")) {
-                            return true;
-                        }
-                        return false;
-                    }
-                });
-                if (files.length > 0) {
-                    File canonicalPath = new File(pathStr + File.separator +
-                            "storm").getCanonicalFile();
-                    return (canonicalPath.getParentFile().getParent());
-                }
-            }
-        }
-        return null;
-    }
-
     @AfterClass
-    public static void tearDown() throws IOException {
+    public static void tearDown() {        
         //stop client
         if (client != null) {
             StormMaster.Client master_client = client.getClient();
             try {
+                master_client.stopSupervisors();
                 master_client.stopNimbus();
                 master_client.stopUI();
-            } catch (TException e) {
-                // TODO Auto-generated catch block
-                e.printStackTrace();
+            } catch (Exception e) {
+                LOG.info("failure in tearn down:"+e.toString());
             }
             client.close();
             client = null;
@@ -194,16 +184,29 @@ public class TestStormCluster {
             server.stop();
             server = null;
         }
+        
+        //remove configuration file
+        testConf.cleanup();
+
+        //shutdown Zookeeper server
+        if (zkServer != null) {
+            zkServer.stop();
+            zkServer = null;
+        }
     }
 
     @Test
     public void testUI() throws Exception {
         LOG.info("Testing UI");
         @SuppressWarnings("rawtypes")
-        final Map storm_conf = Config.readStormConfig(null);
+        final Map storm_conf = Config.readStormConfig(storm_conf_file.toString());
         LOG.info("Testing connection to UI ...");
-        URL url = new URL("http://"+storm_conf.get("ui.host")+":"+storm_conf.get("ui.port")+"/");
+        String host = (String) storm_conf.get("ui.host");
+        if (host==null) host = "localhost";
+        URL url = new URL("http://"+host+":"+storm_conf.get("ui.port")+"/");
+        LOG.info("UI URL:"+url);
         URLConnection con = url.openConnection();
+        Assert.assertNotNull(con);
         Assert.assertNotNull(con.getContent());
     }
 }

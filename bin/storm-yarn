@@ -13,11 +13,11 @@
 #  See the License for the specific language governing permissions and
 #  limitations under the License. See accompanying LICENSE file.
 #
-readonly STORM_ON_YARN_BIN="$(dirname "$(readlink -f "$0")")"
+readonly STORM_ON_YARN_BIN="$(dirname "$(read-link "$0")")"
 readonly MASTER_JAR="$(ls "$STORM_ON_YARN_BIN"/../storm-yarn-*.jar "$STORM_ON_YARN_BIN"/../target/storm-yarn-*.jar 2> /dev/null | head -1)"
-readonly STORM_BIN="$(dirname "$(readlink -f "$(which storm)")")"
+readonly STORM_BIN="$(dirname "$(read-link "$(which storm)")")"
 YARN_CLASSPATH="$(yarn classpath)"
 STORM_CLASSPATH="$(storm classpath)"
-CLASSPATH="$MASTER_JAR:$YARN_CLASSPATH:$STORM_CLASSPATH:$HOME/.storm"
+CLASSPATH="$STORM_YARN_CONF_DIR:$MASTER_JAR:$YARN_CLASSPATH:$STORM_CLASSPATH:$HOME/.storm"
 
 java -cp "$CLASSPATH" -Dstorm.home="$STORM_BIN"/.. com.yahoo.storm.yarn.Client "$@"

@@ -50,6 +50,7 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.yahoo.storm.yarn.Config;
 import backtype.storm.utils.Utils;
 
 class StormAMRMClient extends AMRMClientImpl {
@@ -167,9 +168,11 @@ class StormAMRMClient extends AMRMClientImpl {
     FileSystem fs = FileSystem.get(this.hadoopConf);
     localResources.put("storm", Util.newYarnAppResource(fs, zip,
         LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
+
+    String appHome = Util.getApplicationHomeForId(this.appAttemptId.toString());
     
-    Path dirDst =
-        Util.createConfigurationFileInFs(fs, this.storm_conf);
+    Path dirDst = Util.createConfigurationFileInFs(
+            fs, appHome, this.storm_conf, this.hadoopConf);
     
     localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
     

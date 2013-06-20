@@ -45,11 +45,13 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ContainerManager;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerToken;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
@@ -61,7 +63,8 @@ import com.google.common.base.Joiner;
 
 class Util {
 
-  private static final String STORM_CONF_PATH_STRING = "conf/storm.yaml";
+  private static final String STORM_CONF_PATH_STRING = 
+      "conf" + Path.SEPARATOR + "storm.yaml";
     
   static String getStormHome() {
       String ret = System.getProperty("storm.home");
@@ -112,11 +115,15 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static Path createConfigurationFileInFs(FileSystem fs,
-          Map stormConf) throws IOException {
+          String appHome, Map stormConf, YarnConfiguration yarnConf) 
+          throws IOException {
     // dump stringwriter's content into FS conf/storm.yaml
-    Path confDst = new Path(STORM_CONF_PATH_STRING);
+    Path confDst = new Path(fs.getHomeDirectory(),
+            appHome + Path.SEPARATOR + STORM_CONF_PATH_STRING);
     Path dirDst = confDst.getParent();
     fs.mkdirs(dirDst);
+    
+    //storm.yaml
     FSDataOutputStream out = fs.create(confDst);
     Yaml yaml = new Yaml();
     OutputStreamWriter writer = new OutputStreamWriter(out);
@@ -124,6 +131,15 @@ class Util {
     yaml.dump(stormConf, writer);
     writer.close();
     out.close();
+
+    //yarn-site.xml
+    Path yarn_site_xml = new Path(dirDst, "yarn-site.xml");
+    out = fs.create(yarn_site_xml);
+    writer = new OutputStreamWriter(out);
+    yarnConf.writeXml(writer);
+    writer.close();
+    out.close();   
+    
     return dirDst;
   } 
 
@@ -164,7 +180,7 @@ class Util {
   @SuppressWarnings("rawtypes")
   private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
           throws IOException {
-      String stormHomePath = System.getProperty("storm.home");
+      String stormHomePath = getStormHome();
       List<String> toRet = new ArrayList<String>();
       toRet.add("java");
       toRet.add("-server");
@@ -259,4 +275,13 @@ class Util {
       }
       return toRet;
   }
+
+  static String getApplicationHomeForId(String id) {
+      if (id.isEmpty()) {
+          throw new IllegalArgumentException(
+                  "The ID of the application cannot be empty.");
+      }
+      return ".storm" + Path.SEPARATOR + id;
+  }
 }
+
