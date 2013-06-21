@@ -15,7 +15,7 @@
 -->
 storm-yarn
 =================
-Storm-yarn enable storm clusters to be deployed within YARN cluster.  It is still a work
+Storm-yarn enables Storm clusters to be deployed into machines managed by Hadoop YARN.  It is still a work
 in progress.
 
 
