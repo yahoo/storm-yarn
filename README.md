@@ -13,11 +13,9 @@
   See the License for the specific language governing permissions and
   limitations under the License. See accompanying LICENSE file.
 -->
-storm-yarn-master
+storm-yarn
 =================
-storm on yarn application master
-
-This is to provide basic storm on YARN functionality.  It is still a work
+Storm-yarn enable storm clusters to be deployed within YARN cluster.  It is still a work
 in progress.
 
 

@@ -84,9 +84,7 @@ public class TestIntegration {
                     "storm-on-yarn-test",
                     "--output",
                     "target/appId.txt");
-            LOG.info("Launchming storm cluster:"+cmd.toString());  
             int status = execute(cmd);
-            LOG.info("Launch completed with status code:"+status);           
 
             //wait for Storm cluster to be fully luanched
             sleep(30000); 
@@ -115,7 +113,7 @@ public class TestIntegration {
         try {
             List<String> cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "getStormConfig",
-                    "src/main/resources/master_defaults.yaml",
+                    storm_conf_file.toString(),
                     "--appId",
                     appId,
                     "--output",
@@ -125,7 +123,7 @@ public class TestIntegration {
 
             cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "addSupervisors",
-                    "src/main/resources/master_defaults.yaml",
+                    storm_conf_file.toString(),
                     "2",
                     "--appId",
                     appId);
@@ -134,7 +132,7 @@ public class TestIntegration {
 
             cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "stopNimbus",
-                    "src/main/resources/master_defaults.yaml",
+                    storm_conf_file.toString(),
                     "--appId",
                     appId);
             execute(cmd);
@@ -142,7 +140,7 @@ public class TestIntegration {
 
             cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "startNimbus",
-                    "src/main/resources/master_defaults.yaml",
+                    storm_conf_file.toString(),
                     "--appId",
                     appId);
             execute(cmd);
@@ -150,7 +148,7 @@ public class TestIntegration {
 
             cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "stopUI",
-                    "src/main/resources/master_defaults.yaml",
+                    storm_conf_file.toString(),
                     "--appId",
                     appId);
             execute(cmd);
@@ -158,7 +156,7 @@ public class TestIntegration {
 
             cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "startUI",
-                    "src/main/resources/master_defaults.yaml",
+                    storm_conf_file.toString(),
                     "--appId",
                     appId);
             execute(cmd);
@@ -190,7 +188,7 @@ public class TestIntegration {
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private static int execute(List<String> cmd) throws InterruptedException, IOException {
-        LOG.info("execute: "+ Joiner.on(" ").join(cmd));           
+        LOG.info(Joiner.on(" ").join(cmd));           
         ProcessBuilder pb = new ProcessBuilder(cmd).redirectError(Redirect.INHERIT).redirectOutput(Redirect.INHERIT);
         pb.redirectErrorStream(true);
         pb.redirectOutput();
