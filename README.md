@@ -28,9 +28,19 @@ in progress.
 
 ## Build:
 
-To run the tests you need an instance of storm installed and reachable on your PATH.
+To run the tests,  you execute the following command. 
 
     mvn package
+
+You will see that storm-yarn commands being executed.
+<pre><code>15:19:20.550 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn launch ./conf/storm.yaml --stormZip lib/storm.zip --appname storm-on-yarn-test --output target/appId.txt
+15:19:52.344 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn getStormConfig ./conf/storm.yaml --appId application_1371853155146_0001 --output target/storm1.yaml
+15:19:54.685 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn addSupervisors ./conf/storm.yaml 2 --appId application_1371853155146_0001
+15:19:57.009 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopNimbus ./conf/storm.yaml --appId application_1371853155146_0001
+15:19:59.367 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startNimbus ./conf/storm.yaml --appId application_1371853155146_0001
+15:20:01.717 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopUI ./conf/storm.yaml --appId application_1371853155146_0001
+15:20:04.259 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startUI ./conf/storm.yaml --appId application_1371853155146_0001
+</code></pre>
 
 If you want to skip the tests you can run
 
