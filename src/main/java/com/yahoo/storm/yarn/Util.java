@@ -133,34 +133,6 @@ class Util {
         LocalResourceVisibility.APPLICATION);
   }
 
-  static ContainerManager getCMProxy(final YarnRPC rpc,
-      ContainerId containerID, final String containerManagerBindAddr,
-      ContainerToken containerToken, final Configuration hadoopConf)
-      throws IOException {
-
-    final InetSocketAddress cmAddr =
-        NetUtils.createSocketAddr(containerManagerBindAddr);
-    UserGroupInformation user = UserGroupInformation.getCurrentUser();
-
-    if (UserGroupInformation.isSecurityEnabled()) {
-      Token<ContainerTokenIdentifier> token =
-          ProtoUtils.convertFromProtoFormat(containerToken, cmAddr);
-      // the user in createRemoteUser in this context has to be ContainerID
-      user = UserGroupInformation.createRemoteUser(containerID.toString());
-      user.addToken(token);
-    }
-
-    ContainerManager proxy = user
-        .doAs(new PrivilegedAction<ContainerManager>() {
-          @Override
-          public ContainerManager run() {
-            return (ContainerManager) rpc.getProxy(ContainerManager.class,
-                cmAddr, hadoopConf);
-          }
-        });
-    return proxy;
-  }
-
   @SuppressWarnings("rawtypes")
   private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
           throws IOException {
