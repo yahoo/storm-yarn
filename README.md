@@ -71,14 +71,28 @@ it is intended to also provide ways to manage the cluster.
 
 To launch a cluster you can run
 
-    storm-yarn launch [<storm-yarn config>]
+    storm-yarn launch <storm-yarn-config>
 
-storm-yarn configuration will be used to launch a Storm cluster.
+storm-yarn-configuration (a yaml file) will be used to launch a Storm cluster.
 storm-yarn has a number of new config options to configure the storm AM.
    * master.initial-num-supervisors is the number of supervisors to launch with storm.
    * master.container.size-mb is the size of the container to request.
+"storm-yarn launch" produces an Application ID, which identify the newly launched Storm master.
+This Application ID should be used for accessing the Storm master.
 
-For a full list of commands and options you can run
+To obtain a storm.yaml from the newly launch Storm master, you can run
+
+    storm-yarn getStormConfig <storm-yarn-config> --appId <Application-ID> --output <storm.yaml>
+
+storm.yaml will be retrieved from Storm master.  
+
+After storing the above storm.yaml in Storm classpath (ex. ~/.storm/storm.yaml), you will 
+invoke standard Storm commands against the Storm cluster on YARN. For example, you run 
+the following command to submit a topology
+
+    storm jar <appJar>
+
+For a full list of storm-yarn commands and options you can run
 
     storm-yarn help
 
