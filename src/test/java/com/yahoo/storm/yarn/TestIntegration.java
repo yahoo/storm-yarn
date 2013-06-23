@@ -168,6 +168,19 @@ public class TestIntegration {
 
     @AfterClass
     public static void tearDown() throws IOException, TException {        
+        //shutdown Storm Cluster
+        try {
+            List<String> cmd = java.util.Arrays.asList("bin/storm-yarn",
+                    "shutdown",
+                    storm_conf_file.toString(),
+                    "--appId",
+                    appId);
+            execute(cmd);
+            sleep(1000);
+        } catch (Exception ex) {
+            Assert.assertEquals(null, ex);
+        }
+        
         //shutdown YARN cluster
         if (yarnCluster != null) {
             LOG.info("shutdown MiniYarn cluster");

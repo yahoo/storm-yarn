@@ -100,10 +100,6 @@ For a full list of storm-yarn commands and options you can run
 
 The is no failover when nimbus goes down. Still working on it.
 
-There is no easy way to get the normal storm client to connect to the 
-nimbus server that was just launched.  (You need to find the host and port
-and then configure it automatically on the command line.)
-
 The default UI port is the same as the default MR shuffle port.  You
 probably want to change that to avoid collisions.
 
