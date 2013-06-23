@@ -45,12 +45,7 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     
     StormMasterServerHandler(@SuppressWarnings("rawtypes") Map storm_conf, StormAMRMClient client) {
         _storm_conf = storm_conf;
-        try {
-            String host_addr = InetAddress.getLocalHost().getHostAddress();
-            LOG.info("Storm master host:"+host_addr);
-            _storm_conf.put(Config.NIMBUS_HOST, host_addr);
-        } catch (UnknownHostException ex) {
-        }
+        setStormHostConf();
         Util.rmNulls(_storm_conf);
         _client = client;
     }
@@ -70,6 +65,15 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         }
     }
 
+    private void setStormHostConf() {
+        try {
+            String host_addr = InetAddress.getLocalHost().getHostAddress();
+            LOG.info("Storm master host:"+host_addr);
+            _storm_conf.put(Config.NIMBUS_HOST, host_addr);
+        } catch (UnknownHostException ex) {
+        }
+    }
+    
     @Override
     public String getStormConf() throws TException {
         LOG.info("getting configuration...");
@@ -94,7 +98,8 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         Map<?, ?> new_conf = (Map<?, ?>)json;
         _storm_conf.putAll(new_conf);
         Util.rmNulls(_storm_conf);
-
+        setStormHostConf();
+        
         // start processes
         startNimbus();
         startUI();
