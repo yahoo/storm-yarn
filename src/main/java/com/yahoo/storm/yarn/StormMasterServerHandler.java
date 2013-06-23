@@ -20,6 +20,8 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.ProcessBuilder.Redirect;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 
@@ -29,6 +31,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.yaml.snakeyaml.Yaml;
 
+import backtype.storm.Config;
+
 import com.google.common.base.Joiner;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
@@ -37,17 +41,28 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     @SuppressWarnings("rawtypes")
     Map _storm_conf;
     StormAMRMClient _client;
-
+    MasterServer _masterServer;
+    
     StormMasterServerHandler(@SuppressWarnings("rawtypes") Map storm_conf, StormAMRMClient client) {
         _storm_conf = storm_conf;
+        try {
+            String host_addr = InetAddress.getLocalHost().getHostAddress();
+            LOG.info("Storm master host:"+host_addr);
+            _storm_conf.put(Config.NIMBUS_HOST, host_addr);
+        } catch (UnknownHostException ex) {
+        }
         Util.rmNulls(_storm_conf);
         _client = client;
     }
 
+    void init(MasterServer masterServer) {
+        _masterServer = masterServer;
+    }
+
     void stop() {
         try {
-            stopUI();
             stopSupervisors();
+            stopUI();
             stopNimbus();
         } catch (TException e) {
             // TODO Auto-generated catch block
@@ -216,5 +231,11 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     public void stopSupervisors() throws TException {
         LOG.info("stopping supervisors...");
         _client.stopAllSupervisors();
+    }
+
+    @Override
+    public void shutdown() throws TException {
+        LOG.info("shutdown storm master...");
+        _masterServer.stop();
     }
 }

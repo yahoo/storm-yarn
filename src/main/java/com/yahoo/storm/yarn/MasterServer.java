@@ -175,12 +175,13 @@ public class MasterServer extends ThriftServer {
             rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED,
                     "AllDone", null);
         } finally {
-            LOG.info("Stop Master Thrift Server");
-            server.stop();
+            if (server.isServing()) {
+                LOG.info("Stop Master Thrift Server");
+                server.stop();
+            }
             LOG.info("Stop RM client");
             rmClient.stop();
         }
-        LOG.debug("See Ya!!!");
         System.exit(0);
     }
 
@@ -230,6 +231,7 @@ public class MasterServer extends ThriftServer {
                 Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT)));
         try {
             _handler = handler;
+            _handler.init(this);
             
             LOG.info("launch nimbus");
             _handler.startNimbus();

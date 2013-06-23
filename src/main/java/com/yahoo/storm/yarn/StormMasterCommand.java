@@ -39,7 +39,8 @@ public class StormMasterCommand implements ClientCommand {
         STOP_UI, 
         ADD_SUPERVISORS,
         START_SUPERVISORS,
-        STOP_SUPERVISORS 
+        STOP_SUPERVISORS,
+        SHUTDOWN
     };
     COMMAND cmd;
 
@@ -147,6 +148,14 @@ public class StormMasterCommand implements ClientCommand {
             case STOP_SUPERVISORS:
                 try {
                     client.stopSupervisors();
+                } catch (TTransportException ex) {
+                    LOG.info(ex.toString());
+                }
+                break;
+
+            case SHUTDOWN:
+                try {
+                    client.shutdown();
                 } catch (TTransportException ex) {
                     LOG.info(ex.toString());
                 }

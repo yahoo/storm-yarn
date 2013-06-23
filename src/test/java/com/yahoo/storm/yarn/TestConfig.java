@@ -65,7 +65,7 @@ public class TestConfig {
 
     void cleanup() {
         if (storm_conf_file != null) 
-            deleteFolder(storm_conf_file);
+            deleteFolder(storm_conf_file.getParentFile());
         deleteFolder(new File(storm_home));
     }
 
