@@ -152,11 +152,11 @@ public class StormOnYarn {
         fs.copyFromLocalFile(false, true, src, dst);
         localResources.put("AppMaster.jar", Util.newYarnAppResource(fs, dst));
 
+        String stormVersion = Util.getStormVersion(_stormConf);
         Path zip;
         if (storm_zip_location != null) {
             zip = new Path(storm_zip_location);
         } else {
-            String stormVersion = Util.getStormVersion(_stormConf);
             zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");         
         }
         localResources.put("storm", Util.newYarnAppResource(fs, zip,
