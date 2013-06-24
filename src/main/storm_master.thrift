@@ -35,5 +35,8 @@ service StormMaster {
   // enable/disable supervisors
   void startSupervisors();
   void stopSupervisors();
+
+  // shutdown storm cluster
+  void shutdown();
 }
 
