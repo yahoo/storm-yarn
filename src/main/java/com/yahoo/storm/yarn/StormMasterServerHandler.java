@@ -71,6 +71,7 @@ public class StormMasterServerHandler implements StormMaster.Iface {
             LOG.info("Storm master host:"+host_addr);
             _storm_conf.put(Config.NIMBUS_HOST, host_addr);
         } catch (UnknownHostException ex) {
+            LOG.warn("Failed to get IP address of local host");
         }
     }
     
