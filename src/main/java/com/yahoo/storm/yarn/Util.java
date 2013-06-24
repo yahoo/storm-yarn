@@ -121,24 +121,29 @@ class Util {
     Path confDst = new Path(fs.getHomeDirectory(),
             appHome + Path.SEPARATOR + STORM_CONF_PATH_STRING);
     Path dirDst = confDst.getParent();
-    fs.mkdirs(dirDst);
+    if (!fs.exists(dirDst))
+        fs.mkdirs(dirDst);
     
     //storm.yaml
-    FSDataOutputStream out = fs.create(confDst);
-    Yaml yaml = new Yaml();
-    OutputStreamWriter writer = new OutputStreamWriter(out);
-    rmNulls(stormConf);
-    yaml.dump(stormConf, writer);
-    writer.close();
-    out.close();
+    if (!fs.exists(confDst)) {
+        FSDataOutputStream out = fs.create(confDst);
+        Yaml yaml = new Yaml();
+        OutputStreamWriter writer = new OutputStreamWriter(out);
+        rmNulls(stormConf);
+        yaml.dump(stormConf, writer);
+        writer.close();
+        out.close();
+    }
 
     //yarn-site.xml
     Path yarn_site_xml = new Path(dirDst, "yarn-site.xml");
-    out = fs.create(yarn_site_xml);
-    writer = new OutputStreamWriter(out);
-    yarnConf.writeXml(writer);
-    writer.close();
-    out.close();   
+    if (!fs.exists(yarn_site_xml)) {
+        FSDataOutputStream out = fs.create(yarn_site_xml);
+        OutputStreamWriter writer = new OutputStreamWriter(out);
+        yarnConf.writeXml(writer);
+        writer.close();
+        out.close();   
+    }
     
     return dirDst;
   } 
