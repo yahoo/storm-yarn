@@ -104,6 +104,7 @@ public class Client {
         commands.put("stopUI", new StormMasterCommand(StormMasterCommand.COMMAND.STOP_UI));
         commands.put("startSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.START_SUPERVISORS));
         commands.put("stopSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.STOP_SUPERVISORS));
+        commands.put("shutdown", new StormMasterCommand(StormMasterCommand.COMMAND.SHUTDOWN));
 
         String commandName = null;
         String[] commandArgs = null;
