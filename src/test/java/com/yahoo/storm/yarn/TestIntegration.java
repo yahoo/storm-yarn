@@ -78,6 +78,7 @@ public class TestIntegration {
             //create a storm configuration file with zkport 
             final Map storm_conf = Config.readStormConfig();
             storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
+            storm_conf.put(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS, 100);
             storm_conf_file = testConf.createConfigFile(storm_conf);
 
             List<String> cmd = java.util.Arrays.asList("bin/storm-yarn",
@@ -129,6 +130,7 @@ public class TestIntegration {
             cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "addSupervisors",
                     storm_conf_file.toString(),
+                    "--supervisors",
                     "2",
                     "--appId",
                     appId);
@@ -141,7 +143,7 @@ public class TestIntegration {
                     "storm.starter.WordCountTopology", 
                     "word-count-topology");
             execute(cmd);
-            sleep(1000);
+            sleep(5000);
 
             Map storm_conf = Config.readStormConfig(storm_home+"/storm.yaml");
             Nimbus.Client nimbus_client = NimbusClient.getConfiguredClient(storm_conf).getClient();

@@ -35,7 +35,7 @@ To run the tests,  you execute the following command.
 You will see that storm-yarn commands being executed.
 <pre><code>17:57:27.810 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn launch ./conf/storm.yaml --stormZip lib/storm.zip --appname storm-on-yarn-test --output target/appId.txt
 17:57:59.681 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn getStormConfig ./conf/storm.yaml --appId application_1372121842369_0001 --output ./lib/storm/storm.yaml
-17:58:02.059 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn addSupervisors ./conf/storm.yaml 2 --appId application_1372121842369_0001
+17:58:02.059 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn addSupervisors ./conf/storm.yaml --supervisors 2 --appId application_1372121842369_0001
 17:58:04.382 [main] INFO  com.yahoo.storm.yarn.TestIntegration - ./lib/storm/bin/storm jar lib/storm-starter-0.0.1-SNAPSHOT.jar storm.starter.WordCountTopology word-count-topology
 17:58:07.798 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopNimbus ./conf/storm.yaml --appId application_1372121842369_0001
 17:58:10.131 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startNimbus ./conf/storm.yaml --appId application_1372121842369_0001

@@ -58,7 +58,7 @@ public class StormMasterCommand implements ClientCommand {
         opts.addOption("appId", true, "(Required) The storm clusters app ID");
 
         opts.addOption("output", true, "Output file");
-        opts.addOption("supversiors", true, "(Required for addSupervisors) The # of supervisors to be added");
+        opts.addOption("supervisors", true, "(Required for addSupervisors) The # of supervisors to be added");
         return opts;
     }
 
@@ -113,7 +113,7 @@ public class StormMasterCommand implements ClientCommand {
                 break;
 
             case ADD_SUPERVISORS:
-                String supversiors = cl.getOptionValue("supversiors", "1");
+                String supversiors = cl.getOptionValue("supervisors", "1");
                 try {
                     client.addSupervisors(new Integer(supversiors).intValue());  
                 } catch (TTransportException ex) {
