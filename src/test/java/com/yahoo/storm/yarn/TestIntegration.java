@@ -34,6 +34,11 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import backtype.storm.generated.ClusterSummary;
+import backtype.storm.generated.Nimbus;
+import backtype.storm.generated.TopologySummary;
+import backtype.storm.utils.NimbusClient;
+
 import com.google.common.base.Joiner;
 
 public class TestIntegration {
@@ -117,7 +122,7 @@ public class TestIntegration {
                     "--appId",
                     appId,
                     "--output",
-                    "target/storm1.yaml");
+                    storm_home+"/storm.yaml");
             execute(cmd);
             sleep(1000);
 
@@ -130,6 +135,20 @@ public class TestIntegration {
             execute(cmd);
             sleep(1000);
 
+            cmd = java.util.Arrays.asList(storm_home+"/bin/storm",
+                    "jar",
+                    "lib/storm-starter-0.0.1-SNAPSHOT.jar",
+                    "storm.starter.WordCountTopology", 
+                    "word-count-topology");
+            execute(cmd);
+            sleep(1000);
+
+            Map storm_conf = Config.readStormConfig(storm_home+"/storm.yaml");
+            Nimbus.Client nimbus_client = NimbusClient.getConfiguredClient(storm_conf).getClient();
+            ClusterSummary cluster_summary = nimbus_client.getClusterInfo();
+            TopologySummary topology_summary = cluster_summary.get_topologies().get(0);
+            Assert.assertEquals("ACTIVE", topology_summary.get_status());
+            
             cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "stopNimbus",
                     storm_conf_file.toString(),

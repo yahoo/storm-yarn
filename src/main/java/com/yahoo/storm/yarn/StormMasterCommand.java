@@ -16,6 +16,8 @@
 
 package com.yahoo.storm.yarn;
 
+import java.io.FileOutputStream;
+import java.io.OutputStreamWriter;
 import java.io.PrintStream;
 import java.util.Map;
 import org.apache.commons.cli.CommandLine;
@@ -24,6 +26,7 @@ import org.apache.thrift7.transport.TTransportException;
 import org.json.simple.JSONValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
 import com.yahoo.storm.yarn.Client.ClientCommand;
 import com.yahoo.storm.yarn.generated.StormMaster;
@@ -77,13 +80,26 @@ public class StormMasterCommand implements ClientCommand {
                 try { 
                     conf_str = client.getStormConf();                  
                 } catch (TTransportException ex) {
-                    LOG.info(ex.toString());
+                    LOG.info("Exception in getStormConfig:"+ex.toString());
                 }
                 if (conf_str != null) {
-                    String output = cl.getOptionValue("output");
-                    PrintStream os = (output!=null? new PrintStream(output) : System.out);
-                    os.println(conf_str);
-                    if (output != null) os.close();
+                    try {
+                        Object json = JSONValue.parse(conf_str);
+                        Map<?, ?> conf = (Map<?, ?>)json;
+                        Yaml yaml = new Yaml();
+                        
+                        String output = cl.getOptionValue("output");
+                        if (output == null) {
+                            yaml.dump(conf);
+                        } else {
+                            FileOutputStream out = new FileOutputStream(output);
+                            OutputStreamWriter writer = new OutputStreamWriter(out);
+                            yaml.dump(conf, writer);
+                            out.close();
+                        }
+                    } catch (Exception ex) {
+                        LOG.info(ex.toString());
+                    }
                 }
                 break;
 
@@ -160,7 +176,7 @@ public class StormMasterCommand implements ClientCommand {
                     LOG.info(ex.toString());
                 }
                 break;
-            }
+            } 
         } finally {
             if (storm != null) {
                 storm.stop();
