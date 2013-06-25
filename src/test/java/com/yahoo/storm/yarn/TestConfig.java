@@ -20,8 +20,8 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
 import java.io.IOException;
-import java.io.OutputStreamWriter;
 import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -41,11 +41,10 @@ public class TestConfig {
     synchronized File createYarnSiteConfig(Configuration yarn_conf) throws IOException {
         yarn_site_xml = new File("./target/conf/yarn-site.xml");
         yarn_site_xml.getParentFile().mkdirs();
-        FileOutputStream out = new FileOutputStream(yarn_site_xml);
-        OutputStreamWriter writer = new OutputStreamWriter(out);
+        FileWriter writer = new FileWriter(yarn_site_xml);
         yarn_conf.writeXml(writer);
-        writer.close();
-        out.close();   
+        writer.flush();
+        writer.close();   
         return yarn_site_xml;
     }
 
@@ -54,12 +53,11 @@ public class TestConfig {
         storm_conf_file = new File("./conf/storm.yaml");
         storm_conf_file.getParentFile().mkdirs();
         Yaml yaml = new Yaml();
-        FileOutputStream out = new FileOutputStream(storm_conf_file);
-        OutputStreamWriter writer = new OutputStreamWriter(out);
+        FileWriter writer = new FileWriter(storm_conf_file);
         Util.rmNulls(storm_conf);
         yaml.dump(storm_conf, writer);
+        writer.flush();
         writer.close();
-        out.close();   
         return storm_conf_file;
     }
 

@@ -164,7 +164,8 @@ class StormAMRMClient extends AMRMClientImpl {
     Map<String, LocalResource> localResources =
         new HashMap<String, LocalResource>();
     String stormVersion = Util.getStormVersion(this.storm_conf);
-    Path zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");
+    String storm_zip_path = (String)storm_conf.get("storm.zip.path");
+    Path zip = new Path(storm_zip_path);
     FileSystem fs = FileSystem.get(this.hadoopConf);
     localResources.put("storm", Util.newYarnAppResource(fs, zip,
         LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));

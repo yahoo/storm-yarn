@@ -16,8 +16,7 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.FileOutputStream;
-import java.io.OutputStreamWriter;
+import java.io.FileWriter;
 import java.io.PrintStream;
 import java.util.Map;
 import org.apache.commons.cli.CommandLine;
@@ -92,13 +91,14 @@ public class StormMasterCommand implements ClientCommand {
                         if (output == null) {
                             yaml.dump(conf);
                         } else {
-                            FileOutputStream out = new FileOutputStream(output);
-                            OutputStreamWriter writer = new OutputStreamWriter(out);
-                            yaml.dump(conf, writer);
+                            FileWriter out = new FileWriter(output);
+                            yaml.dump(conf, out);
+                            out.flush();
                             out.close();
+                            LOG.info("storm.yaml downloaded into "+output);
                         }
                     } catch (Exception ex) {
-                        LOG.info(ex.toString());
+                        LOG.info("Exception in getStormConfig "+ ex.toString());
                     }
                 }
                 break;

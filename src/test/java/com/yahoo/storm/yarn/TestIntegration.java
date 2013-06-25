@@ -50,28 +50,29 @@ public class TestIntegration {
     private static File yarn_site_xml;
     private static String storm_home;
     private static TestConfig testConf = new TestConfig(); 
-    
+
     @SuppressWarnings({ "rawtypes", "unchecked" })
     @BeforeClass
     public static void setup() {
         try {
             zkServer = new EmbeddedZKServer();
             zkServer.start();
-            
+
             LOG.info("Starting up MiniYARN cluster");
             if (yarnCluster == null) {
-                yarnCluster = new MiniYARNCluster(TestIntegration.class.getName(), 1, 1, 1);
+                yarnCluster = new MiniYARNCluster(TestIntegration.class.getName(), 2, 1, 1);
                 Configuration conf = new YarnConfiguration();
                 conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);
+                conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB, 2*1024);
+                conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_CORES, 1);
                 yarnCluster.init(conf);
                 yarnCluster.start();
             }
-            
             sleep(2000);
-            
+
             Configuration miniyarn_conf = yarnCluster.getConfig();
             yarn_site_xml = testConf.createYarnSiteConfig(miniyarn_conf);
-            
+
             storm_home = testConf.stormHomePath();
             LOG.info("Will be using storm found on PATH at "+storm_home);
 
@@ -90,10 +91,10 @@ public class TestIntegration {
                     "storm-on-yarn-test",
                     "--output",
                     "target/appId.txt");
-            int status = execute(cmd);
+            execute(cmd);
 
             //wait for Storm cluster to be fully luanched
-            sleep(30000); 
+            sleep(15000); 
 
             BufferedReader reader = new BufferedReader(new FileReader ("target/appId.txt"));
             appId = reader.readLine();
@@ -101,8 +102,8 @@ public class TestIntegration {
             if (appId!=null) appId = appId.trim();
             LOG.info("application ID:"+appId);
         } catch (Exception ex) {
-            Assert.assertEquals(null, ex);
             LOG.error("setup failure", ex);
+            Assert.assertEquals(null, ex);
         }
     }
 
@@ -127,30 +128,28 @@ public class TestIntegration {
             execute(cmd);
             sleep(1000);
 
-            cmd = java.util.Arrays.asList("bin/storm-yarn",
-                    "addSupervisors",
-                    storm_conf_file.toString(),
-                    "--supervisors",
-                    "2",
-                    "--appId",
-                    appId);
-            execute(cmd);
-            sleep(1000);
-
             cmd = java.util.Arrays.asList(storm_home+"/bin/storm",
                     "jar",
                     "lib/storm-starter-0.0.1-SNAPSHOT.jar",
                     "storm.starter.WordCountTopology", 
                     "word-count-topology");
             execute(cmd);
+            sleep(30000);
+
+            if (new File(storm_home+"/storm.yaml").exists()) {
+                Map storm_conf = Config.readStormConfig(storm_home+"/storm.yaml");
+                Nimbus.Client nimbus_client = NimbusClient.getConfiguredClient(storm_conf).getClient();
+                ClusterSummary cluster_summary = nimbus_client.getClusterInfo();
+                TopologySummary topology_summary = cluster_summary.get_topologies().get(0);
+                Assert.assertEquals("ACTIVE", topology_summary.get_status());
+            }
+            
+            cmd = java.util.Arrays.asList(storm_home+"/bin/storm",
+                    "kill",
+                    "word-count-topology");
+            execute(cmd);
             sleep(5000);
 
-            Map storm_conf = Config.readStormConfig(storm_home+"/storm.yaml");
-            Nimbus.Client nimbus_client = NimbusClient.getConfiguredClient(storm_conf).getClient();
-            ClusterSummary cluster_summary = nimbus_client.getClusterInfo();
-            TopologySummary topology_summary = cluster_summary.get_topologies().get(0);
-            Assert.assertEquals("ACTIVE", topology_summary.get_status());
-            
             cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "stopNimbus",
                     storm_conf_file.toString(),
@@ -183,15 +182,21 @@ public class TestIntegration {
             execute(cmd);
             sleep(1000);
         } catch (Exception ex) {
+            LOG.warn("Exception in Integration Test", ex);
             Assert.assertEquals(null, ex);
         }
     }
 
     @AfterClass
-    public static void tearDown() throws IOException, TException {        
-        //shutdown Storm Cluster
+    public static void tearDown() {        
         try {
-            List<String> cmd = java.util.Arrays.asList("bin/storm-yarn",
+            //HACK: need better way to kill processes "python splitsensence.py" 
+            List<String> cmd = java.util.Arrays.asList("killall",
+                    "python");
+            execute(cmd);
+
+            //shutdown Storm Cluster
+            cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "shutdown",
                     storm_conf_file.toString(),
                     "--appId",
@@ -199,9 +204,15 @@ public class TestIntegration {
             execute(cmd);
             sleep(1000);
         } catch (Exception ex) {
-            Assert.assertEquals(null, ex);
+            LOG.info(ex.toString());
         }
-        
+
+        //shutdown Zookeeper server
+        if (zkServer != null) {
+            zkServer.stop();
+            zkServer = null;
+        }
+
         //shutdown YARN cluster
         if (yarnCluster != null) {
             LOG.info("shutdown MiniYarn cluster");
@@ -209,16 +220,10 @@ public class TestIntegration {
             yarnCluster = null;
         }
         sleep(1000);
-        
+
         //remove configuration file
         testConf.cleanup();
-
-        //shutdown Zookeeper server
-        if (zkServer != null) {
-            zkServer.stop();
-            zkServer = null;
-        }
-   }
+    }
 
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private static int execute(List<String> cmd) throws InterruptedException, IOException {
