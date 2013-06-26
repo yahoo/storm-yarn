@@ -16,6 +16,7 @@
 
 package com.yahoo.storm.yarn;
 
+import java.io.FileWriter;
 import java.io.PrintStream;
 import java.util.Map;
 import org.apache.commons.cli.CommandLine;
@@ -24,6 +25,7 @@ import org.apache.thrift7.transport.TTransportException;
 import org.json.simple.JSONValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.yaml.snakeyaml.Yaml;
 
 import com.yahoo.storm.yarn.Client.ClientCommand;
 import com.yahoo.storm.yarn.generated.StormMaster;
@@ -55,7 +57,7 @@ public class StormMasterCommand implements ClientCommand {
         opts.addOption("appId", true, "(Required) The storm clusters app ID");
 
         opts.addOption("output", true, "Output file");
-        opts.addOption("supversiors", true, "(Required for addSupervisors) The # of supervisors to be added");
+        opts.addOption("supervisors", true, "(Required for addSupervisors) The # of supervisors to be added");
         return opts;
     }
 
@@ -77,13 +79,27 @@ public class StormMasterCommand implements ClientCommand {
                 try { 
                     conf_str = client.getStormConf();                  
                 } catch (TTransportException ex) {
-                    LOG.info(ex.toString());
+                    LOG.info("Exception in getStormConfig:"+ex.toString());
                 }
                 if (conf_str != null) {
-                    String output = cl.getOptionValue("output");
-                    PrintStream os = (output!=null? new PrintStream(output) : System.out);
-                    os.println(conf_str);
-                    if (output != null) os.close();
+                    try {
+                        Object json = JSONValue.parse(conf_str);
+                        Map<?, ?> conf = (Map<?, ?>)json;
+                        Yaml yaml = new Yaml();
+                        
+                        String output = cl.getOptionValue("output");
+                        if (output == null) {
+                            yaml.dump(conf);
+                        } else {
+                            FileWriter out = new FileWriter(output);
+                            yaml.dump(conf, out);
+                            out.flush();
+                            out.close();
+                            LOG.info("storm.yaml downloaded into "+output);
+                        }
+                    } catch (Exception ex) {
+                        LOG.info("Exception in getStormConfig "+ ex.toString());
+                    }
                 }
                 break;
 
@@ -97,7 +113,7 @@ public class StormMasterCommand implements ClientCommand {
                 break;
 
             case ADD_SUPERVISORS:
-                String supversiors = cl.getOptionValue("supversiors", "1");
+                String supversiors = cl.getOptionValue("supervisors", "1");
                 try {
                     client.addSupervisors(new Integer(supversiors).intValue());  
                 } catch (TTransportException ex) {
@@ -160,7 +176,7 @@ public class StormMasterCommand implements ClientCommand {
                     LOG.info(ex.toString());
                 }
                 break;
-            }
+            } 
         } finally {
             if (storm != null) {
                 storm.stop();
