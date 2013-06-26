@@ -131,8 +131,8 @@ public class TestIntegration {
             cmd = java.util.Arrays.asList(storm_home+"/bin/storm",
                     "jar",
                     "lib/storm-starter-0.0.1-SNAPSHOT.jar",
-                    "storm.starter.WordCountTopology", 
-                    "word-count-topology");
+                    "storm.starter.ExclamationTopology", 
+                    "exclamation-topology");
             execute(cmd);
             sleep(30000);
 
@@ -146,9 +146,9 @@ public class TestIntegration {
             
             cmd = java.util.Arrays.asList(storm_home+"/bin/storm",
                     "kill",
-                    "word-count-topology");
+                    "exclamation-topology");
             execute(cmd);
-            sleep(5000);
+            sleep(1000);
 
             cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "stopNimbus",
@@ -190,13 +190,8 @@ public class TestIntegration {
     @AfterClass
     public static void tearDown() {        
         try {
-            //HACK: need better way to kill processes "python splitsensence.py" 
-            List<String> cmd = java.util.Arrays.asList("killall",
-                    "python");
-            execute(cmd);
-
             //shutdown Storm Cluster
-            cmd = java.util.Arrays.asList("bin/storm-yarn",
+            List<String> cmd = java.util.Arrays.asList("bin/storm-yarn",
                     "shutdown",
                     storm_conf_file.toString(),
                     "--appId",
