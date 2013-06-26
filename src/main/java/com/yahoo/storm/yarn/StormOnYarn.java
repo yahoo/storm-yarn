@@ -177,13 +177,18 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
         //TODO need a better way to get the storm .zip created and put where it needs to go.
-	if ("Unknown".equals(stormVersion)) {
-            Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/storm/*");
-            Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/storm/lib/*");
-	} else {
-            Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/storm-" + stormVersion + "/*");
-            Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/storm-" + stormVersion + "/lib/*");
+
+        String stormHomeInZip = (String)_stormConf.get("storm.home.in.zip");
+        if (stormHomeInZip == null) {        
+            if ("Unknown".equals(stormVersion)) {
+                stormHomeInZip = "storm";
+            } else {
+                stormHomeInZip = "storm-" + stormVersion;
+            }
         }
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
+ 
         for (String c : _hadoopConf.getStrings(
                 YarnConfiguration.YARN_APPLICATION_CLASSPATH,
                 YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
@@ -233,11 +238,7 @@ public class StormOnYarn {
         vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/pwd");
         vargs.add("&&");
         vargs.add("java");
-        if ("Unknown".equals(stormVersion)) {
-            vargs.add("-Dstorm.home=./storm/storm/");
-        } else {
-            vargs.add("-Dstorm.home=./storm/storm-" + stormVersion + "/");
-        }
+        vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
         vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
