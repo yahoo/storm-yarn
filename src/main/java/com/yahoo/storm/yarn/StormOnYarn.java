@@ -159,6 +159,7 @@ public class StormOnYarn {
         } else {
             zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");         
         }
+        _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
         localResources.put("storm", Util.newYarnAppResource(fs, zip,
                 LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
         

@@ -18,6 +18,8 @@ package com.yahoo.storm.yarn;
 import java.io.IOException;
 import java.util.Map;
 
+import junit.framework.Assert;
+
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -110,7 +112,7 @@ public class TestStormMaster {
         StormMaster.Client master_client = client.getClient();
 
         LOG.info("getStormConf");
-        LOG.info(master_client.getStormConf());
+        Assert.assertNotNull(master_client.getStormConf());
 
         LOG.info("addSupervisors(1)");
         master_client.addSupervisors(1); 

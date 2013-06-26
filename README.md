@@ -33,20 +33,15 @@ To run the tests,  you execute the following command.
     mvn package
 
 You will see that storm-yarn commands being executed.
-<pre><code>11:50:14.245 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn launch ./conf/storm.yaml --stormZip lib/storm.zip --appname storm-on-yarn-test --output target/appId.txt
-11:50:46.738 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn getStormConfig ./conf/storm.yaml --appId application_1372013408379_0001 --output target/storm1.yaml
-SLF4J: Found binding in [jar:file:/Users/afeng/dev/hadoop-dev/storm-yarn/lib/storm/lib/logback-classic-1.0.6.jar!/org/slf4j/impl/StaticLoggerBinder.class]
-11:50:49.324 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn addSupervisors ./conf/storm.yaml 2 --appId application_1372013408379_0001
-SLF4J: Found binding in [jar:file:/Users/afeng/dev/hadoop-dev/storm-yarn/lib/storm/lib/logback-classic-1.0.6.jar!/org/slf4j/impl/StaticLoggerBinder.class]
-11:50:51.946 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopNimbus ./conf/storm.yaml --appId application_1372013408379_0001
-SLF4J: Found binding in [jar:file:/Users/afeng/dev/hadoop-dev/storm-yarn/lib/storm/lib/logback-classic-1.0.6.jar!/org/slf4j/impl/StaticLoggerBinder.class]
-11:50:54.445 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startNimbus ./conf/storm.yaml --appId application_1372013408379_0001
-SLF4J: Found binding in [jar:file:/Users/afeng/dev/hadoop-dev/storm-yarn/lib/storm/lib/logback-classic-1.0.6.jar!/org/slf4j/impl/StaticLoggerBinder.class]
-11:50:56.881 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopUI ./conf/storm.yaml --appId application_1372013408379_0001
-SLF4J: Found binding in [jar:file:/Users/afeng/dev/hadoop-dev/storm-yarn/lib/storm/lib/logback-classic-1.0.6.jar!/org/slf4j/impl/StaticLoggerBinder.class]
-11:50:59.560 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startUI ./conf/storm.yaml --appId application_1372013408379_0001
-SLF4J: Found binding in [jar:file:/Users/afeng/dev/hadoop-dev/storm-yarn/lib/storm/lib/logback-classic-1.0.6.jar!/org/slf4j/impl/StaticLoggerBinder.class]
-11:51:01.984 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn shutdown ./conf/storm.yaml --appId application_1372013408379_0001
+<pre><code>17:57:27.810 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn launch ./conf/storm.yaml --stormZip lib/storm.zip --appname storm-on-yarn-test --output target/appId.txt
+17:57:59.681 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn getStormConfig ./conf/storm.yaml --appId application_1372121842369_0001 --output ./lib/storm/storm.yaml
+17:58:04.382 [main] INFO  com.yahoo.storm.yarn.TestIntegration - ./lib/storm/bin/storm jar lib/storm-starter-0.0.1-SNAPSHOT.jar storm.starter.ExclamationTopology exclamation-topology
+17:58:04.382 [main] INFO  com.yahoo.storm.yarn.TestIntegration - ./lib/storm/bin/storm kill exclamation-topology
+17:58:07.798 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopNimbus ./conf/storm.yaml --appId application_1372121842369_0001
+17:58:10.131 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startNimbus ./conf/storm.yaml --appId application_1372121842369_0001
+17:58:12.460 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopUI ./conf/storm.yaml --appId application_1372121842369_0001
+17:58:15.045 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startUI ./conf/storm.yaml --appId application_1372121842369_0001
+17:58:17.390 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn shutdown ./conf/storm.yaml --appId application_1372121842369_0001
 </code></pre>
 
 If you want to skip the tests you can run

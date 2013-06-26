@@ -19,6 +19,7 @@ package com.yahoo.storm.yarn;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.StringWriter;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
@@ -92,10 +93,6 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         stopNimbus();
 
         Object json = JSONValue.parse(storm_conf);
-        if (!json.getClass().isAssignableFrom(Map.class)) {
-            LOG.warn("Could not parse configuration into a Map: " + storm_conf);
-            return;
-        }
         Map<?, ?> new_conf = (Map<?, ?>)json;
         _storm_conf.putAll(new_conf);
         Util.rmNulls(_storm_conf);
