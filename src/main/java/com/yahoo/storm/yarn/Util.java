@@ -20,6 +20,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+
 import java.io.OutputStreamWriter;
 import java.net.InetSocketAddress;
 import java.nio.file.attribute.BasicFileAttributes;
@@ -35,9 +36,12 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -45,6 +49,7 @@ import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.apache.hadoop.yarn.api.ContainerManager;
+import org.apache.hadoop.yarn.api.records.ApplicationId;
 import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.ContainerToken;
 import org.apache.hadoop.yarn.api.records.LocalResource;
@@ -86,6 +91,20 @@ class Util {
     } else {
       return "Unknown";
     }
+  }
+
+  static String getStormHomeInZip(FileSystem fs, Path zip, String stormVersion) throws IOException, RuntimeException {
+    FSDataInputStream fsInputStream = fs.open(zip);
+    ZipInputStream zipInputStream = new ZipInputStream(fsInputStream);
+    ZipEntry entry = zipInputStream.getNextEntry();
+    while (entry != null) {
+      String entryName = entry.getName();
+      if (entryName.matches("^storm(-" + stormVersion + ")?/")) {
+        return entryName.replace("/", "");
+      }
+      entry = zipInputStream.getNextEntry();
+    }
+    throw new RuntimeException("Can not find storm home entry in storm zip file.");
   }
 
   static LocalResource newYarnAppResource(FileSystem fs, Path path,

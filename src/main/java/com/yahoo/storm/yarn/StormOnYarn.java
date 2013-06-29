@@ -179,14 +179,8 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
         //TODO need a better way to get the storm .zip created and put where it needs to go.
 
-        String stormHomeInZip = (String)_stormConf.get("storm.home.in.zip");
-        if (stormHomeInZip == null) {        
-            if ("Unknown".equals(stormVersion)) {
-                stormHomeInZip = "storm";
-            } else {
-                stormHomeInZip = "storm-" + stormVersion;
-            }
-        }
+        String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
+
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
  
