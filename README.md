@@ -26,6 +26,10 @@ in progress.
 * Derek Dagit ([@d2r](https://github.com/d2r))
 * Nathan Roberts ([@ynroberts](https://github.com/ynroberts))
 
+## Mailing list
+
+Feel free to ask questions on storm-yarn's mailing list: http://groups.google.com/group/storm-yarn
+
 ## Build:
 
 To run the tests,  you execute the following command. 
