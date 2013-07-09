@@ -30,7 +30,12 @@ in progress.
 
 Feel free to ask questions on storm-yarn's mailing list: http://groups.google.com/group/storm-yarn
 
-## Build:
+## Prerequisite
+
+Please install the following software first:
+   * Java 7
+   
+## Build
 
 To run the tests,  you execute the following command. 
 
