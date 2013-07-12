@@ -59,7 +59,8 @@
     </repositories>
     <properties>
         <storm.version>0.9.0-wip17</storm.version>
-        <hadoop.version>2.0.4-alpha</hadoop.version>
+        <hadoop.version>0.23.9</hadoop.version>
+        <!-- hadoop.version> 0.23.9 2.0.4-alpha</hadoop.version-->
     </properties>
     <dependencies>
         <dependency>

@@ -64,7 +64,7 @@ public class TestIntegration {
                 Configuration conf = new YarnConfiguration();
                 conf.setInt(YarnConfiguration.RM_SCHEDULER_MINIMUM_ALLOCATION_MB, 512);
                 conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_MB, 2*1024);
-                conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_CORES, 1);
+                //conf.setInt(YarnConfiguration.RM_SCHEDULER_MAXIMUM_ALLOCATION_CORES, 1);
                 yarnCluster.init(conf);
                 yarnCluster.start();
             }
