@@ -48,6 +48,10 @@
             <id>apache.snapshots</id>
             <url>http://repository.apache.org/content/repositories/snapshots/</url>
         </repository>
+        <repository>
+            <id>cloudera</id>
+            <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+        </repository>
         
         <!-- Special: following this instruction alternative 3
         http://slf4j.org/faq.html#excludingJCL -->
@@ -59,8 +63,8 @@
     </repositories>
     <properties>
         <storm.version>0.9.0-wip17</storm.version>
-        <hadoop.version>0.23.9</hadoop.version>
-        <!-- hadoop.version> 0.23.9 2.0.4-alpha</hadoop.version-->
+        <hadoop.version>2.0.0-cdh4.3.0</hadoop.version>
+        <!-- hadoop.version>0.23.9</hadoop.version-->
     </properties>
     <dependencies>
         <dependency>
