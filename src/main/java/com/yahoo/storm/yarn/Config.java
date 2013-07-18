@@ -27,7 +27,6 @@ import org.yaml.snakeyaml.Yaml;
 import backtype.storm.utils.Utils;
 
 public class Config {
-    private static final Logger LOG = LoggerFactory.getLogger(Config.class);
     final public static String MASTER_DEFAULTS_CONFIG = "master_defaults.yaml";
     final public static String MASTER_CONFIG = "master.yaml";
     final public static String MASTER_HOST = "master.host";

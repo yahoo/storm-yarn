@@ -152,11 +152,11 @@ public class StormOnYarn {
         fs.copyFromLocalFile(false, true, src, dst);
         localResources.put("AppMaster.jar", Util.newYarnAppResource(fs, dst));
 
+        String stormVersion = Util.getStormVersion(_stormConf);
         Path zip;
         if (storm_zip_location != null) {
             zip = new Path(storm_zip_location);
         } else {
-            String stormVersion = Util.getStormVersion(_stormConf);
             zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");         
         }
         _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
@@ -178,10 +178,11 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
         //TODO need a better way to get the storm .zip created and put where it needs to go.
-        String storm_n_version = Util.getVersionedStormRoot(zip);
-        LOG.debug("storm_n_version:"+storm_n_version);
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/"+storm_n_version+"/*");
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/"+storm_n_version+"/lib/*");
+
+        String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
+ 
         for (String c : _hadoopConf.getStrings(
                 YarnConfiguration.YARN_APPLICATION_CLASSPATH,
                 Constants.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
@@ -231,7 +232,7 @@ public class StormOnYarn {
         vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/pwd");
         vargs.add("&&");
         vargs.add("java");
-        vargs.add("-Dstorm.home=./storm/"+storm_n_version+"/");
+        vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
         vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
