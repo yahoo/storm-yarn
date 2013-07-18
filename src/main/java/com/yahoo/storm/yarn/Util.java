@@ -290,26 +290,21 @@ class Util {
       return ".storm" + Path.SEPARATOR + id;
   }
   
-  static String getVersionedStormRoot(Path zipFilePath){
+  static String getVersionedStormRoot(Path zipFilePath) throws IOException {
       ZipEntry zEntry;
-      try {
-          FileInputStream fis = new FileInputStream(zipFilePath.toString());
-          ZipInputStream zipIs = new ZipInputStream(new BufferedInputStream(fis));
-          while((zEntry = zipIs.getNextEntry()) != null){
-              try{
-                  if (zEntry.isDirectory()) { 
-                      String entryName = zEntry.getName();
-                      if (entryName.indexOf(Path.SEPARATOR)==(entryName.length()-1))
-                          return entryName.substring(0, entryName.length()-1);
-                  } 
-              } catch(Exception ex){
-              }
+
+      FileInputStream fis = new FileInputStream(zipFilePath.toString());
+      ZipInputStream zipIs = new ZipInputStream(new BufferedInputStream(fis));
+      while((zEntry = zipIs.getNextEntry()) != null){
+          if (!zEntry.isDirectory())  continue;
+          String entryName = zEntry.getName();
+          if (entryName.indexOf(Path.SEPARATOR)==(entryName.length()-1)) {
+              zipIs.close();
+              return entryName.substring(0, entryName.length()-1);
           }
-          zipIs.close();
-      } catch (FileNotFoundException e) {
-      } catch (IOException e) {
       }
-      return null;
+      zipIs.close();
+      throw new IOException("Storm zip file at "+zipFilePath.getName()+" is not valid");
   }
 }
 
