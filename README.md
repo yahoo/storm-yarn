@@ -30,7 +30,12 @@ in progress.
 
 Feel free to ask questions on storm-yarn's mailing list: http://groups.google.com/group/storm-yarn
 
-## Build:
+## Prerequisite
+
+Please install the following software first:
+   * Java 7
+   
+## Build
 
 To run the tests,  you execute the following command. 
 
@@ -61,7 +66,10 @@ shipped to all of the nodes through the distributed cache at
 
 /lib/storm/&lt;storm-version&gt;/storm.zip
 
-If you are running storm using zeromq and jzmq you need to augment the standard
+Storm-YARN is now configured to use Netty for communication between spouts and bolts.
+It's pure JVM based, and thus OS independent.
+
+If you are running storm using zeromq (instead of Netty), you need to augment the standard
 storm.zip file the needed .so files. This can be done with the not ideally
 named create-tarball.sh script
 
@@ -105,9 +113,6 @@ For a full list of storm-yarn commands and options you can run
 ## Known Issues:
 
 The is no failover when nimbus goes down. Still working on it.
-
-The default UI port is the same as the default MR shuffle port.  You
-probably want to change that to avoid collisions.
 
 There is no simple way to get to the logs for the different processes.
 

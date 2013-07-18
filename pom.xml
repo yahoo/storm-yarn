@@ -58,13 +58,13 @@
         </repository>    
     </repositories>
     <properties>
-        <storm.version>0.9.0-wip17</storm.version>
+        <storm.version>0.9.0-wip21</storm.version>
         <hadoop.version>2.0.4-alpha</hadoop.version>
     </properties>
     <dependencies>
         <dependency>
             <groupId>storm</groupId>
-            <artifactId>storm</artifactId>
+            <artifactId>storm-core</artifactId>
             <version>${storm.version}</version>
             <exclusions>
                 <exclusion>
@@ -75,12 +75,12 @@
         </dependency>
         <dependency>
             <groupId>storm</groupId>
-            <artifactId>libthrift7</artifactId>
-            <version>0.7.0</version>
+            <artifactId>storm-netty</artifactId>
+            <version>${storm.version}</version>
             <exclusions>
                 <exclusion>
                     <groupId>org.slf4j</groupId>
-                    <artifactId>slf4j-api</artifactId>
+                    <artifactId>log4j-over-slf4j</artifactId>
                 </exclusion>
             </exclusions>
         </dependency>
@@ -89,10 +89,11 @@
             <artifactId>jcl-over-slf4j</artifactId>
             <version>1.7.2</version>
         </dependency>
-        <dependency><!--There is a conflict with slf4j-->
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-            <version>99-empty</version>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.1</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -118,6 +119,12 @@
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.apache.zookeeper</groupId>
+            <artifactId>zookeeper</artifactId>
+            <version>3.3.3</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-all</artifactId>
             <version>1.9.5</version>
@@ -125,7 +132,7 @@
         </dependency>
     </dependencies>
     <build>
-        <plugins>
+       <plugins>
             <plugin>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>2.4</version>
