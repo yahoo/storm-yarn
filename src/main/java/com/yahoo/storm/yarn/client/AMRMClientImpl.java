@@ -147,7 +147,10 @@ public class AMRMClientImpl extends AbstractService {
     request.setRpcPort(appHostPort);
     if(appTrackingUrl != null) {
       request.setTrackingUrl(appTrackingUrl);
+    } else {
+        request.setTrackingUrl("http://"+appHostName+":"+appHostPort);        
     }
+    
     RegisterApplicationMasterResponse response = rmClient
         .registerApplicationMaster(request);
     return response;

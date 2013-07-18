@@ -40,7 +40,6 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.client.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnRemoteException;
 import org.apache.hadoop.yarn.util.Apps;
@@ -179,8 +178,10 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
         //TODO need a better way to get the storm .zip created and put where it needs to go.
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/storm/*");
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/storm/lib/*");
+        String storm_n_version = Util.getVersionedStormRoot(zip);
+        LOG.debug("storm_n_version:"+storm_n_version);
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/"+storm_n_version+"/*");
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/"+storm_n_version+"/lib/*");
         for (String c : _hadoopConf.getStrings(
                 YarnConfiguration.YARN_APPLICATION_CLASSPATH,
                 Constants.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
@@ -230,7 +231,7 @@ public class StormOnYarn {
         vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/pwd");
         vargs.add("&&");
         vargs.add("java");
-        vargs.add("-Dstorm.home=./storm/storm/");
+        vargs.add("-Dstorm.home=./storm/"+storm_n_version+"/");
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
         vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");

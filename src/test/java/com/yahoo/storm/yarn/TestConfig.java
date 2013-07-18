@@ -29,6 +29,7 @@ import java.util.zip.ZipInputStream;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
 import org.yaml.snakeyaml.Yaml;
 
 public class TestConfig {
@@ -36,7 +37,7 @@ public class TestConfig {
 
     private File yarn_site_xml;
     private File storm_conf_file;
-    private String storm_home = "./lib/storm";
+    private String storm_home = null;
 
     synchronized File createYarnSiteConfig(Configuration yarn_conf) throws IOException {
         yarn_site_xml = new File("./target/conf/yarn-site.xml");
@@ -69,7 +70,7 @@ public class TestConfig {
 
     synchronized String stormHomePath() throws IOException {
         unzipFile("./lib/storm.zip");
-        Runtime.getRuntime().exec( "chmod +x ./lib/storm/bin/storm");
+        Runtime.getRuntime().exec( "chmod +x "+storm_home+"/bin/storm");
         System.setProperty("storm.home", storm_home);
         return storm_home;
     }
@@ -88,6 +89,8 @@ public class TestConfig {
                     String opFilePath = "lib/"+zEntry.getName();
                     if (zEntry.isDirectory()) { 
                         LOG.debug("Create a folder "+opFilePath);
+                        if (zEntry.getName().indexOf(Path.SEPARATOR)==(zEntry.getName().length()-1))
+                            storm_home = opFilePath.substring(0, opFilePath.length()-1);
                         new File(opFilePath).mkdir();
                     } else {
                         LOG.debug("Extracting file to "+opFilePath);
