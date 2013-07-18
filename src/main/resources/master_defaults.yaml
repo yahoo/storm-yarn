@@ -18,3 +18,11 @@ master.initial-num-supervisors: 1
 master.container.priority: 0
 master.heartbeat.interval.millis: 1000
 nimbusui.startup.ms: 10000
+
+ui.port: 7070
+
+storm.messaging.transport: "backtype.storm.messaging.netty.Context"
+storm.messaging.netty.buffer_size: 1048576
+storm.messaging.netty.max_retries: 10
+storm.messaging.netty.min_wait_ms: 1000
+storm.messaging.netty.max_wait_ms: 5000

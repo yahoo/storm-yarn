@@ -16,8 +16,12 @@
 
 package com.yahoo.storm.yarn;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
@@ -34,7 +38,10 @@ import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.Set;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
@@ -281,6 +288,28 @@ class Util {
                   "The ID of the application cannot be empty.");
       }
       return ".storm" + Path.SEPARATOR + id;
+  }
+  
+  static String getVersionedStormRoot(Path zipFilePath){
+      ZipEntry zEntry;
+      try {
+          FileInputStream fis = new FileInputStream(zipFilePath.toString());
+          ZipInputStream zipIs = new ZipInputStream(new BufferedInputStream(fis));
+          while((zEntry = zipIs.getNextEntry()) != null){
+              try{
+                  if (zEntry.isDirectory()) { 
+                      String entryName = zEntry.getName();
+                      if (entryName.indexOf(Path.SEPARATOR)==(entryName.length()-1))
+                          return entryName.substring(0, entryName.length()-1);
+                  } 
+              } catch(Exception ex){
+              }
+          }
+          zipIs.close();
+      } catch (FileNotFoundException e) {
+      } catch (IOException e) {
+      }
+      return null;
   }
 }
 
