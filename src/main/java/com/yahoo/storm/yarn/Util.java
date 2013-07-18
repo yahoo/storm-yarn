@@ -16,52 +16,37 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+
 import java.io.OutputStreamWriter;
-import java.net.InetSocketAddress;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.PathMatcher;
 import java.nio.file.SimpleFileVisitor;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.yarn.api.ContainerManager;
-import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.ContainerToken;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.ipc.YarnRPC;
-import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.yaml.snakeyaml.Yaml;
 
@@ -93,6 +78,22 @@ class Util {
     } else {
       return "Unknown";
     }
+  }
+
+  static String getStormHomeInZip(FileSystem fs, Path zip, String stormVersion) throws IOException, RuntimeException {
+    FSDataInputStream fsInputStream = fs.open(zip);
+    ZipInputStream zipInputStream = new ZipInputStream(fsInputStream);
+    ZipEntry entry = zipInputStream.getNextEntry();
+    while (entry != null) {
+      String entryName = entry.getName();
+      if (entryName.matches("^storm(-" + stormVersion + ")?/")) {
+        fsInputStream.close();
+        return entryName.replace("/", "");
+      }
+      entry = zipInputStream.getNextEntry();
+    }
+    fsInputStream.close();
+    throw new RuntimeException("Can not find storm home entry in storm zip file.");
   }
 
   static LocalResource newYarnAppResource(FileSystem fs, Path path,
@@ -153,34 +154,6 @@ class Util {
       throws IOException {
     return Util.newYarnAppResource(fs, path, LocalResourceType.FILE,
         LocalResourceVisibility.APPLICATION);
-  }
-
-  static ContainerManager getCMProxy(final YarnRPC rpc,
-      ContainerId containerID, final String containerManagerBindAddr,
-      ContainerToken containerToken, final Configuration hadoopConf)
-      throws IOException {
-
-    final InetSocketAddress cmAddr =
-        NetUtils.createSocketAddr(containerManagerBindAddr);
-    UserGroupInformation user = UserGroupInformation.getCurrentUser();
-
-    if (UserGroupInformation.isSecurityEnabled()) {
-      Token<ContainerTokenIdentifier> token =
-          ProtoUtils.convertFromProtoFormat(containerToken, cmAddr);
-      // the user in createRemoteUser in this context has to be ContainerID
-      user = UserGroupInformation.createRemoteUser(containerID.toString());
-      user.addToken(token);
-    }
-
-    ContainerManager proxy = user
-        .doAs(new PrivilegedAction<ContainerManager>() {
-          @Override
-          public ContainerManager run() {
-            return (ContainerManager) rpc.getProxy(ContainerManager.class,
-                cmAddr, hadoopConf);
-          }
-        });
-    return proxy;
   }
 
   @SuppressWarnings("rawtypes")
@@ -288,23 +261,6 @@ class Util {
                   "The ID of the application cannot be empty.");
       }
       return ".storm" + Path.SEPARATOR + id;
-  }
-  
-  static String getVersionedStormRoot(Path zipFilePath) throws IOException {
-      ZipEntry zEntry;
-
-      FileInputStream fis = new FileInputStream(zipFilePath.toString());
-      ZipInputStream zipIs = new ZipInputStream(new BufferedInputStream(fis));
-      while((zEntry = zipIs.getNextEntry()) != null){
-          if (!zEntry.isDirectory())  continue;
-          String entryName = zEntry.getName();
-          if (entryName.indexOf(Path.SEPARATOR)==(entryName.length()-1)) {
-              zipIs.close();
-              return entryName.substring(0, entryName.length()-1);
-          }
-      }
-      zipIs.close();
-      throw new IOException("Storm zip file at "+zipFilePath.getName()+" is not valid");
   }
 }
 
