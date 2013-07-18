@@ -62,14 +62,25 @@
         </repository>    
     </repositories>
     <properties>
-        <storm.version>0.9.0-wip17</storm.version>
+        <storm.version>0.9.0-wip21</storm.version>
         <hadoop.version>2.0.0-cdh4.3.0</hadoop.version>
         <!--hadoop.version>0.23.9</hadoop.version-->
     </properties>
     <dependencies>
         <dependency>
             <groupId>storm</groupId>
-            <artifactId>storm</artifactId>
+            <artifactId>storm-core</artifactId>
+            <version>${storm.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>log4j-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>storm</groupId>
+            <artifactId>storm-netty</artifactId>
             <version>${storm.version}</version>
             <exclusions>
                 <exclusion>

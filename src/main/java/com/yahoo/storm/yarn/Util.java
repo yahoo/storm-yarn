@@ -65,251 +65,251 @@ import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.yaml.snakeyaml.Yaml;
 
+import com.esotericsoftware.minlog.Log;
 import com.google.common.base.Joiner;
 
 class Util {
 
-  private static final String STORM_CONF_PATH_STRING = 
-      "conf" + Path.SEPARATOR + "storm.yaml";
-    
-  static String getStormHome() {
-      String ret = System.getProperty("storm.home");
-      if (ret == null) {
-        throw new RuntimeException("storm.home is not set");
-      }
-      return ret;
-  }
+    private static final String STORM_CONF_PATH_STRING = 
+            "conf" + Path.SEPARATOR + "storm.yaml";
 
-  @SuppressWarnings("rawtypes")
-  static String getStormVersion(Map conf) throws IOException {
-    File releaseFile = new File(getStormHome(), "RELEASE");
-    if (releaseFile.exists()) {
-      BufferedReader reader = new BufferedReader(new FileReader(releaseFile));
-      try {
-        return reader.readLine().trim();
-      } finally {
-        reader.close();
-      }
-    } else {
-      return "Unknown";
-    }
-  }
-
-  static LocalResource newYarnAppResource(FileSystem fs, Path path,
-      LocalResourceType type, LocalResourceVisibility vis) throws IOException {
-    Path qualified = fs.makeQualified(path);
-    FileStatus status = fs.getFileStatus(qualified);
-    LocalResource resource = Records.newRecord(LocalResource.class);
-    resource.setType(type);
-    resource.setVisibility(vis);
-    resource.setResource(ConverterUtils.getYarnUrlFromPath(qualified)); 
-    resource.setTimestamp(status.getModificationTime());
-    resource.setSize(status.getLen());
-    return resource;
-  }
-
-  @SuppressWarnings("rawtypes")
-  static void rmNulls(Map map) {
-    Set s = map.entrySet();
-    Iterator it = s.iterator();
-    while (it.hasNext()) {
-      Map.Entry m =(Map.Entry)it.next();
-      if (m.getValue() == null) 
-        it.remove();
-    }
-  }
-
-  @SuppressWarnings("rawtypes")
-  static Path createConfigurationFileInFs(FileSystem fs,
-          String appHome, Map stormConf, YarnConfiguration yarnConf) 
-          throws IOException {
-    // dump stringwriter's content into FS conf/storm.yaml
-    Path confDst = new Path(fs.getHomeDirectory(),
-            appHome + Path.SEPARATOR + STORM_CONF_PATH_STRING);
-    Path dirDst = confDst.getParent();
-    fs.mkdirs(dirDst);
-    
-    //storm.yaml
-    FSDataOutputStream out = fs.create(confDst);
-    Yaml yaml = new Yaml();
-    OutputStreamWriter writer = new OutputStreamWriter(out);
-    rmNulls(stormConf);
-    yaml.dump(stormConf, writer);
-    writer.close();
-    out.close();
-
-    //yarn-site.xml
-    Path yarn_site_xml = new Path(dirDst, "yarn-site.xml");
-    out = fs.create(yarn_site_xml);
-    writer = new OutputStreamWriter(out);
-    yarnConf.writeXml(writer);
-    writer.close();
-    out.close();   
-    
-    return dirDst;
-  } 
-
-  static LocalResource newYarnAppResource(FileSystem fs, Path path)
-      throws IOException {
-    return Util.newYarnAppResource(fs, path, LocalResourceType.FILE,
-        LocalResourceVisibility.APPLICATION);
-  }
-
-  static ContainerManager getCMProxy(final YarnRPC rpc,
-      ContainerId containerID, final String containerManagerBindAddr,
-      ContainerToken containerToken, final Configuration hadoopConf)
-      throws IOException {
-
-    final InetSocketAddress cmAddr =
-        NetUtils.createSocketAddr(containerManagerBindAddr);
-    UserGroupInformation user = UserGroupInformation.getCurrentUser();
-
-    if (UserGroupInformation.isSecurityEnabled()) {
-      Token<ContainerTokenIdentifier> token =
-          ProtoUtils.convertFromProtoFormat(containerToken, cmAddr);
-      // the user in createRemoteUser in this context has to be ContainerID
-      user = UserGroupInformation.createRemoteUser(containerID.toString());
-      user.addToken(token);
+    static String getStormHome() {
+        String ret = System.getProperty("storm.home");
+        if (ret == null) {
+            throw new RuntimeException("storm.home is not set");
+        }
+        return ret;
     }
 
-    ContainerManager proxy = user
-        .doAs(new PrivilegedAction<ContainerManager>() {
-          @Override
-          public ContainerManager run() {
-            return (ContainerManager) rpc.getProxy(ContainerManager.class,
-                cmAddr, hadoopConf);
-          }
-        });
-    return proxy;
-  }
+    @SuppressWarnings("rawtypes")
+    static String getStormVersion(Map conf) throws IOException {
+        File releaseFile = new File(getStormHome(), "RELEASE");
+        if (releaseFile.exists()) {
+            BufferedReader reader = new BufferedReader(new FileReader(releaseFile));
+            try {
+                return reader.readLine().trim();
+            } finally {
+                reader.close();
+            }
+        } else {
+            return "Unknown";
+        }
+    }
 
-  @SuppressWarnings("rawtypes")
-  private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
-          throws IOException {
-      String stormHomePath = getStormHome();
-      List<String> toRet = new ArrayList<String>();
-      toRet.add("java");
-      toRet.add("-server");
-      toRet.add("-Dstorm.home=" + stormHomePath);
-      toRet.add("-Djava.library.path="
-              + conf.get(backtype.storm.Config.JAVA_LIBRARY_PATH));
-      toRet.add("-Dstorm.conf.file=" + new
-              File(STORM_CONF_PATH_STRING).getName());
-      toRet.add("-cp");
-      toRet.add(buildClassPathArgument());
+    static LocalResource newYarnAppResource(FileSystem fs, Path path,
+            LocalResourceType type, LocalResourceVisibility vis) throws IOException {
+        Path qualified = fs.makeQualified(path);
+        FileStatus status = fs.getFileStatus(qualified);
+        LocalResource resource = Records.newRecord(LocalResource.class);
+        resource.setType(type);
+        resource.setVisibility(vis);
+        resource.setResource(ConverterUtils.getYarnUrlFromPath(qualified)); 
+        resource.setTimestamp(status.getModificationTime());
+        resource.setSize(status.getLen());
+        return resource;
+    }
 
-      if (conf.containsKey(childOptsKey)
-              && conf.get(childOptsKey) != null) {
-          toRet.add((String) conf.get(childOptsKey));
-      }
+    @SuppressWarnings("rawtypes")
+    static void rmNulls(Map map) {
+        Set s = map.entrySet();
+        Iterator it = s.iterator();
+        while (it.hasNext()) {
+            Map.Entry m =(Map.Entry)it.next();
+            if (m.getValue() == null) 
+                it.remove();
+        }
+    }
 
-      toRet.add("-Dlogback.configurationFile=" + FileSystems.getDefault()
-              .getPath(stormHomePath, "logback", "cluster.xml")
-              .toString());
+    @SuppressWarnings("rawtypes")
+    static Path createConfigurationFileInFs(FileSystem fs,
+            String appHome, Map stormConf, YarnConfiguration yarnConf) 
+                    throws IOException {
+        // dump stringwriter's content into FS conf/storm.yaml
+        Path confDst = new Path(fs.getHomeDirectory(),
+                appHome + Path.SEPARATOR + STORM_CONF_PATH_STRING);
+        Path dirDst = confDst.getParent();
+        fs.mkdirs(dirDst);
 
-      return toRet;
-  }
+        //storm.yaml
+        FSDataOutputStream out = fs.create(confDst);
+        Yaml yaml = new Yaml();
+        OutputStreamWriter writer = new OutputStreamWriter(out);
+        rmNulls(stormConf);
+        yaml.dump(stormConf, writer);
+        writer.close();
+        out.close();
 
-  @SuppressWarnings("rawtypes")
-  static List<String> buildUICommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.UI_CHILDOPTS);
+        //yarn-site.xml
+        Path yarn_site_xml = new Path(dirDst, "yarn-site.xml");
+        out = fs.create(yarn_site_xml);
+        writer = new OutputStreamWriter(out);
+        yarnConf.writeXml(writer);
+        writer.close();
+        out.close();   
 
-      toRet.add("-Dlogfile.name=ui.log");
-      toRet.add("backtype.storm.ui.core");
+        return dirDst;
+    } 
 
-      return toRet;
-  }
+    static LocalResource newYarnAppResource(FileSystem fs, Path path)
+            throws IOException {
+        return Util.newYarnAppResource(fs, path, LocalResourceType.FILE,
+                LocalResourceVisibility.APPLICATION);
+    }
 
-  @SuppressWarnings("rawtypes")
-  static List<String> buildNimbusCommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+    static ContainerManager getCMProxy(final YarnRPC rpc,
+            ContainerId containerID, final String containerManagerBindAddr,
+            ContainerToken containerToken, final Configuration hadoopConf)
+                    throws IOException {
 
-      toRet.add("-Dlogfile.name=nimbus.log");
-      toRet.add("backtype.storm.daemon.nimbus");
+        final InetSocketAddress cmAddr =
+                NetUtils.createSocketAddr(containerManagerBindAddr);
+        UserGroupInformation user = UserGroupInformation.getCurrentUser();
 
-      return toRet;
-  }
+        if (UserGroupInformation.isSecurityEnabled()) {
+            Token<ContainerTokenIdentifier> token =
+                    ProtoUtils.convertFromProtoFormat(containerToken, cmAddr);
+            // the user in createRemoteUser in this context has to be ContainerID
+            user = UserGroupInformation.createRemoteUser(containerID.toString());
+            user.addToken(token);
+        }
 
-  @SuppressWarnings("rawtypes")
-  static List<String> buildSupervisorCommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+        ContainerManager proxy = user
+                .doAs(new PrivilegedAction<ContainerManager>() {
+                    @Override
+                    public ContainerManager run() {
+                        return (ContainerManager) rpc.getProxy(ContainerManager.class,
+                                cmAddr, hadoopConf);
+                    }
+                });
+        return proxy;
+    }
 
-      toRet.add("-Dlogfile.name=supervisor.log");
-      toRet.add("backtype.storm.daemon.supervisor");
+    @SuppressWarnings("rawtypes")
+    private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
+            throws IOException {
+        String stormHomePath = getStormHome();
+        List<String> toRet = new ArrayList<String>();
+        toRet.add("java");
+        toRet.add("-server");
+        toRet.add("-Dstorm.home=" + stormHomePath);
+        toRet.add("-Djava.library.path="
+                + conf.get(backtype.storm.Config.JAVA_LIBRARY_PATH));
+        toRet.add("-Dstorm.conf.file=" + new
+                File(STORM_CONF_PATH_STRING).getName());
+        toRet.add("-cp");
+        toRet.add(buildClassPathArgument());
 
-      return toRet;
-  }
+        if (conf.containsKey(childOptsKey)
+                && conf.get(childOptsKey) != null) {
+            toRet.add((String) conf.get(childOptsKey));
+        }
 
-  private static String buildClassPathArgument() throws IOException {
-      List<String> paths = new ArrayList<String>();
-      paths.add(new File(STORM_CONF_PATH_STRING).getParent());
-      paths.add(getStormHome());
-      for (String jarPath : findAllJarsInPaths(getStormHome(),
-              getStormHome() + File.separator + "lib")) {
-          paths.add(jarPath);
-      }
-      return Joiner.on(File.pathSeparatorChar).join(paths);
-  }
+        toRet.add("-Dlogback.configurationFile=" + FileSystems.getDefault()
+                .getPath(stormHomePath, "logback", "cluster.xml")
+                .toString());
 
-  private static List<String> findAllJarsInPaths(String... pathStrs)
-          throws IOException {
-      java.nio.file.FileSystem fs = FileSystems.getDefault();
-      final PathMatcher matcher = fs.getPathMatcher("glob:**.jar");
-      final LinkedHashSet<String> pathSet = new LinkedHashSet<String>();
-      for (String pathStr : pathStrs) {
-          java.nio.file.Path start = fs.getPath(pathStr);
-          Files.walkFileTree(start, new SimpleFileVisitor<java.nio.file.Path>() {
-              @Override
-              public FileVisitResult visitFile(java.nio.file.Path path,
-                      BasicFileAttributes attrs) throws IOException {
-                  if (attrs.isRegularFile() && matcher.matches(path)
-                          && !pathSet.contains(path)) {
-                      java.nio.file.Path parent = path.getParent();
-                      pathSet.add(parent + File.separator + "*");
-                      return FileVisitResult.SKIP_SIBLINGS;
-                  }
-                  return FileVisitResult.CONTINUE;
-              }
-          });
-      }
-      final List<String> toRet = new ArrayList<String>();
-      for (String p : pathSet) {
-          toRet.add(p);
-      }
-      return toRet;
-  }
+        return toRet;
+    }
 
-  static String getApplicationHomeForId(String id) {
-      if (id.isEmpty()) {
-          throw new IllegalArgumentException(
-                  "The ID of the application cannot be empty.");
-      }
-      return ".storm" + Path.SEPARATOR + id;
-  }
-  
-  static String getVersionedStormRoot(Path zipFilePath){
-      ZipEntry zEntry;
-      try {
-          FileInputStream fis = new FileInputStream(zipFilePath.toString());
-          ZipInputStream zipIs = new ZipInputStream(new BufferedInputStream(fis));
-          while((zEntry = zipIs.getNextEntry()) != null){
-              try{
-                  if (zEntry.isDirectory()) { 
-                      String entryName = zEntry.getName();
-                      if (entryName.indexOf(Path.SEPARATOR)==(entryName.length()-1))
-                          return entryName.substring(0, entryName.length()-1);
-                  } 
-              } catch(Exception ex){
-              }
-          }
-          zipIs.close();
-      } catch (FileNotFoundException e) {
-      } catch (IOException e) {
-      }
-      return null;
-  }
+    @SuppressWarnings("rawtypes")
+    static List<String> buildUICommands(Map conf) throws IOException {
+        List<String> toRet =
+                buildCommandPrefix(conf, backtype.storm.Config.UI_CHILDOPTS);
+
+        toRet.add("-Dlogfile.name=ui.log");
+        toRet.add("backtype.storm.ui.core");
+
+        return toRet;
+    }
+
+    @SuppressWarnings("rawtypes")
+    static List<String> buildNimbusCommands(Map conf) throws IOException {
+        List<String> toRet =
+                buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+
+        toRet.add("-Dlogfile.name=nimbus.log");
+        toRet.add("backtype.storm.daemon.nimbus");
+
+        return toRet;
+    }
+
+    @SuppressWarnings("rawtypes")
+    static List<String> buildSupervisorCommands(Map conf) throws IOException {
+        List<String> toRet =
+                buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+
+        toRet.add("-Dlogfile.name=supervisor.log");
+        toRet.add("backtype.storm.daemon.supervisor");
+
+        return toRet;
+    }
+
+    private static String buildClassPathArgument() throws IOException {
+        List<String> paths = new ArrayList<String>();
+        paths.add(new File(STORM_CONF_PATH_STRING).getParent());
+        paths.add(getStormHome());
+        for (String jarPath : findAllJarsInPaths(getStormHome(),
+                getStormHome() + File.separator + "lib")) {
+            paths.add(jarPath);
+        }
+        return Joiner.on(File.pathSeparatorChar).join(paths);
+    }
+
+    private static List<String> findAllJarsInPaths(String... pathStrs)
+            throws IOException {
+        java.nio.file.FileSystem fs = FileSystems.getDefault();
+        final PathMatcher matcher = fs.getPathMatcher("glob:**.jar");
+        final LinkedHashSet<String> pathSet = new LinkedHashSet<String>();
+        for (String pathStr : pathStrs) {
+            java.nio.file.Path start = fs.getPath(pathStr);
+            Files.walkFileTree(start, new SimpleFileVisitor<java.nio.file.Path>() {
+                @Override
+                public FileVisitResult visitFile(java.nio.file.Path path,
+                        BasicFileAttributes attrs) throws IOException {
+                    if (attrs.isRegularFile() && matcher.matches(path)
+                            && !pathSet.contains(path)) {
+                        java.nio.file.Path parent = path.getParent();
+                        pathSet.add(parent + File.separator + "*");
+                        return FileVisitResult.SKIP_SIBLINGS;
+                    }
+                    return FileVisitResult.CONTINUE;
+                }
+            });
+        }
+        final List<String> toRet = new ArrayList<String>();
+        for (String p : pathSet) {
+            toRet.add(p);
+        }
+        return toRet;
+    }
+
+    static String getApplicationHomeForId(String id) {
+        if (id.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "The ID of the application cannot be empty.");
+        }
+        return ".storm" + Path.SEPARATOR + id;
+    }
+
+    static String getVersionedStormRoot(Path zipFilePath) throws IOException {
+        ZipEntry zEntry;
+
+        try {
+            FileInputStream fis = new FileInputStream(zipFilePath.toString());
+            ZipInputStream zipIs = new ZipInputStream(new BufferedInputStream(fis));
+            while((zEntry = zipIs.getNextEntry()) != null){
+                if (!zEntry.isDirectory())  continue;
+                String entryName = zEntry.getName();
+                if (entryName.indexOf(Path.SEPARATOR)==(entryName.length()-1)) {
+                    zipIs.close();
+                    return entryName.substring(0, entryName.length()-1);
+                }
+            }
+            zipIs.close();
+        } catch (IOException ex) {
+            throw new IOException("Storm zip file at "+zipFilePath.getName()+" does not exit or not valid");
+        }
+        throw new IOException("Storm zip file at "+zipFilePath.getName()+" is not valid");
+    }
 }
 
