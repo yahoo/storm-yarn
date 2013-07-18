@@ -27,7 +27,6 @@ import org.yaml.snakeyaml.Yaml;
 import backtype.storm.utils.Utils;
 
 public class Config {
-    private static final Logger LOG = LoggerFactory.getLogger(Config.class);
     final public static String MASTER_DEFAULTS_CONFIG = "master_defaults.yaml";
     final public static String MASTER_CONFIG = "master.yaml";
     final public static String MASTER_HOST = "master.host";
@@ -51,10 +50,16 @@ public class Config {
         ret.putAll(conf);
         
         //standard storm configuration
-        Map storm_conf = Utils.readStormConfig();
+        String confFile = System.getProperty("storm.conf.file");
+        Map storm_conf;
+        if (confFile==null || confFile.equals("")) {
+            storm_conf = Utils.findAndReadConfigFile("storm.yaml", false);
+        } else {
+            storm_conf = Utils.findAndReadConfigFile(confFile, true);
+        }
         ret.putAll(storm_conf);
-
-        //configuration file per command parameter 
+        
+        //master configuration file 
         if (stormYarnConfigPath == null) {
             Map master_conf = Utils.findAndReadConfigFile(Config.MASTER_CONFIG, false);
             ret.putAll(master_conf);
@@ -72,7 +77,7 @@ public class Config {
             }
         }
 
-        //other configuration settings via CLS opts
+        //other configuration settings via CLS opts per system property: storm.options
         ret.putAll(Utils.readCommandLineOpts());
 
         return ret;
