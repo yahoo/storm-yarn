@@ -114,9 +114,6 @@ For a full list of storm-yarn commands and options you can run
 
 The is no failover when nimbus goes down. Still working on it.
 
-The default UI port is the same as the default MR shuffle port.  You
-probably want to change that to avoid collisions.
-
 There is no simple way to get to the logs for the different processes.
 
 ## License
