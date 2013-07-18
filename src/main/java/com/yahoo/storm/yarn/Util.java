@@ -22,14 +22,12 @@ import java.io.FileReader;
 import java.io.IOException;
 
 import java.io.OutputStreamWriter;
-import java.net.InetSocketAddress;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.nio.file.FileSystems;
 import java.nio.file.FileVisitResult;
 import java.nio.file.Files;
 import java.nio.file.PathMatcher;
 import java.nio.file.SimpleFileVisitor;
-import java.security.PrivilegedAction;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
@@ -39,27 +37,16 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.net.NetUtils;
-import org.apache.hadoop.security.UserGroupInformation;
-import org.apache.hadoop.security.token.Token;
-import org.apache.hadoop.yarn.api.ContainerManager;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.ContainerToken;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.ipc.YarnRPC;
-import org.apache.hadoop.yarn.security.ContainerTokenIdentifier;
 import org.apache.hadoop.yarn.util.ConverterUtils;
-import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.yaml.snakeyaml.Yaml;
 
@@ -100,10 +87,12 @@ class Util {
     while (entry != null) {
       String entryName = entry.getName();
       if (entryName.matches("^storm(-" + stormVersion + ")?/")) {
+        fsInputStream.close();
         return entryName.replace("/", "");
       }
       entry = zipInputStream.getNextEntry();
     }
+    fsInputStream.close();
     throw new RuntimeException("Can not find storm home entry in storm zip file.");
   }
 

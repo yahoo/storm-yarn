@@ -40,8 +40,6 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.client.YarnClient;
-import org.apache.hadoop.yarn.client.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnRemoteException;
 import org.apache.hadoop.yarn.util.Apps;
@@ -52,11 +50,13 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.storm.yarn.Config;
 import com.yahoo.storm.yarn.generated.StormMaster;
+import com.yahoo.storm.yarn.client.Constants;
+import com.yahoo.storm.yarn.client.YarnClientImpl;
 
 public class StormOnYarn {
     private static final Logger LOG = LoggerFactory.getLogger(StormOnYarn.class);
 
-    private YarnClient _yarn;
+    private YarnClientImpl _yarn;
     private YarnConfiguration _hadoopConf;
     private ApplicationId _appId;
     @SuppressWarnings("rawtypes")
@@ -180,13 +180,12 @@ public class StormOnYarn {
         //TODO need a better way to get the storm .zip created and put where it needs to go.
 
         String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
-
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
  
         for (String c : _hadoopConf.getStrings(
                 YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-                YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
+                Constants.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
             Apps.addToEnvironment(env, Environment.CLASSPATH.name(), c.trim());
         }
         
@@ -203,7 +202,7 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.conf.YarnConfiguration")));
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.service.Service")));
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.util.ConverterUtils")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.client.AMRMClientImpl")));
+        //Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.client.AMRMClientImpl")));
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("com.google.protobuf.MessageOrBuilder")));
         
         env.put("appJar", appMasterJar);

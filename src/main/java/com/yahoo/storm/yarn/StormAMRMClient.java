@@ -43,7 +43,6 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.client.AMRMClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.Records;
 
@@ -52,6 +51,8 @@ import org.slf4j.LoggerFactory;
 
 import com.yahoo.storm.yarn.Config;
 import backtype.storm.utils.Utils;
+import com.yahoo.storm.yarn.client.AMRMClientImpl;
+import com.yahoo.storm.yarn.client.ContainerRequest;
 
 class StormAMRMClient extends AMRMClientImpl {
   private static final Logger LOG = LoggerFactory.getLogger(StormAMRMClient.class);

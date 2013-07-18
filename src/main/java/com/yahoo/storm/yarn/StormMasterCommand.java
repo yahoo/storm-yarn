@@ -17,7 +17,6 @@
 package com.yahoo.storm.yarn;
 
 import java.io.FileWriter;
-import java.io.PrintStream;
 import java.util.Map;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;

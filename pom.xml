@@ -48,6 +48,10 @@
             <id>apache.snapshots</id>
             <url>http://repository.apache.org/content/repositories/snapshots/</url>
         </repository>
+        <repository>
+            <id>cloudera</id>
+            <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
+        </repository>
         
         <!-- Special: following this instruction alternative 3
         http://slf4j.org/faq.html#excludingJCL -->
@@ -58,13 +62,25 @@
         </repository>    
     </repositories>
     <properties>
-        <storm.version>0.9.0-wip17</storm.version>
-        <hadoop.version>2.0.4-alpha</hadoop.version>
+        <storm.version>0.9.0-wip21</storm.version>
+        <hadoop.version>2.0.0-cdh4.3.0</hadoop.version>
+        <!--hadoop.version>0.23.9</hadoop.version-->
     </properties>
     <dependencies>
         <dependency>
             <groupId>storm</groupId>
-            <artifactId>storm</artifactId>
+            <artifactId>storm-core</artifactId>
+            <version>${storm.version}</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>org.slf4j</groupId>
+                    <artifactId>log4j-over-slf4j</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>storm</groupId>
+            <artifactId>storm-netty</artifactId>
             <version>${storm.version}</version>
             <exclusions>
                 <exclusion>
@@ -89,10 +105,11 @@
             <artifactId>jcl-over-slf4j</artifactId>
             <version>1.7.2</version>
         </dependency>
-        <dependency><!--There is a conflict with slf4j-->
-            <groupId>commons-logging</groupId>
-            <artifactId>commons-logging</artifactId>
-            <version>99-empty</version>
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.1</version>
+            <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
@@ -100,7 +117,7 @@
             <version>${hadoop.version}</version>
             <type>test-jar</type>
             <scope>test</scope>
-        </dependency>        
+        </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
