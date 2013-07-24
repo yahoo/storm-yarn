@@ -41,10 +41,12 @@ Please install the following software first:
 ## Build
 
 To run the tests,  you execute one of the following command. 
-   * mvn -f pom-0.23.xml package ... if you are using Apache Hadoop 0.23.x
+
+    mvn -f pom-0.23.xml package //if you are using Apache Hadoop 0.23.x
 
 or
-   * mvn -f pom-cdh43.xml package ... if you are using Hadoop 2.0.0-cdh4.3.x from cloudera
+
+    mvn -f pom-cdh43.xml package //if you are using Hadoop 2.0.0-cdh4.3.x from cloudera
 
 You will see that storm-yarn commands being executed.
 <pre><code>17:57:27.810 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn launch ./conf/storm.yaml --stormZip lib/storm.zip --appname storm-on-yarn-test --output target/appId.txt
@@ -59,10 +61,11 @@ You will see that storm-yarn commands being executed.
 </code></pre>
 
 If you want to skip the tests you can run
-   * mvn -f pom-0.23.xml package -DskipTests
+
+    mvn -f pom-0.23.xml package -DskipTests
 
 or
-   * mvn -f pom-cdh43.xml package -DskipTests
+    mvn -f pom-cdh43.xml package -DskipTests
 
 ## Deploy:
 
