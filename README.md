@@ -40,9 +40,9 @@ Please install the following software first:
 
 ## Build
 
-To run the tests,  you execute one of the following commands. 
-
+To run the tests,  you execute one of the following command. 
    * mvn -f pom-0.23.xml package ... if you are using Apache Hadoop 0.23.x
+or
    * mvn -f pom-cdh43.xml package ... if you are using Hadoop 2.0.0-cdh4.3.x from cloudera
 
 You will see that storm-yarn commands being executed.
@@ -58,8 +58,9 @@ You will see that storm-yarn commands being executed.
 </code></pre>
 
 If you want to skip the tests you can run
-
-    mvn package -DskipTests
+   * mvn -f pom-0.23.xml package -DskipTests
+or
+   * mvn -f pom-cdh43.xml package -DskipTests
 
 ## Deploy:
 
