@@ -40,9 +40,13 @@ Please install the following software first:
 
 ## Build
 
-To run the tests,  you execute the following command. 
+To run the tests,  you execute one of the following command. 
 
-    mvn package
+    mvn -f pom-0.23.xml package //if you are using Apache Hadoop 0.23.x
+
+or
+
+    mvn -f pom-cdh43.xml package //if you are using Hadoop 2.0.0-cdh4.3.x from cloudera
 
 You will see that storm-yarn commands being executed.
 <pre><code>17:57:27.810 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn launch ./conf/storm.yaml --stormZip lib/storm.zip --appname storm-on-yarn-test --output target/appId.txt
@@ -58,7 +62,11 @@ You will see that storm-yarn commands being executed.
 
 If you want to skip the tests you can run
 
-    mvn package -DskipTests
+    mvn -f pom-0.23.xml package -DskipTests
+
+or
+
+    mvn -f pom-cdh43.xml package -DskipTests
 
 ## Deploy:
 
@@ -69,9 +77,10 @@ shipped to all of the nodes through the distributed cache at
 
 /lib/storm/&lt;storm-version&gt;/storm.zip
 
-If you are running storm using zeromq and jzmq you need to augment the standard
-storm.zip file the needed .so files. This can be done with the not ideally
-named create-tarball.sh script
+Storm-YARN is now configured to use Netty for communication between spouts and bolts.
+It's pure JVM based, and thus OS independent. If you want to run storm using zeromq 
+(instead of Netty), you need to augment the standard
+storm.zip file the needed .so files. This can be done with the following command: 
 
     create-tarball.sh storm.zip
 

@@ -22,13 +22,13 @@ import java.net.InetSocketAddress;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
-import org.apache.zookeeper.server.NIOServerCnxnFactory;
+import org.apache.zookeeper.server.NIOServerCnxn.Factory;
 import org.apache.zookeeper.server.ZooKeeperServer;
 
 public class EmbeddedZKServer {
 
     private static final Log LOG = LogFactory.getLog(EmbeddedZKServer.class);
-    private NIOServerCnxnFactory zkFactory;
+    private Factory zkFactory;
     private int zkport;
     
     void start() throws IOException, InterruptedException {
@@ -36,10 +36,9 @@ public class EmbeddedZKServer {
         File localfile = new File("./target/zookeeper.data");
         ZooKeeperServer zkServer;
         zkServer = new ZooKeeperServer(localfile, localfile, 2000);
-        zkFactory = new NIOServerCnxnFactory();
         for (zkport = 60000; true; zkport++)
             try {
-                zkFactory.configure(new InetSocketAddress(zkport), 10);
+                zkFactory = new Factory(new InetSocketAddress(zkport));
                 break;
             } catch (BindException e) {
                 if (zkport == 65535) throw new IOException("Fail to find a port for Zookeeper server to bind");
