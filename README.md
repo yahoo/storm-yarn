@@ -65,6 +65,7 @@ If you want to skip the tests you can run
     mvn -f pom-0.23.xml package -DskipTests
 
 or
+
     mvn -f pom-cdh43.xml package -DskipTests
 
 ## Deploy:
