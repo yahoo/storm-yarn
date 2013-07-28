@@ -40,6 +40,7 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
+import org.apache.hadoop.yarn.client.YarnClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.exceptions.YarnRemoteException;
 import org.apache.hadoop.yarn.util.Apps;
@@ -48,10 +49,8 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.storm.yarn.Config;
-import com.yahoo.storm.yarn.generated.StormMaster;
 import com.yahoo.storm.yarn.client.Constants;
-import com.yahoo.storm.yarn.client.YarnClientImpl;
+import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class StormOnYarn {
     private static final Logger LOG = LoggerFactory.getLogger(StormOnYarn.class);
@@ -71,7 +70,7 @@ public class StormOnYarn {
     private StormOnYarn(ApplicationId appId, @SuppressWarnings("rawtypes") Map stormConf) {        
         _hadoopConf = new YarnConfiguration();  
         _yarnRMaddr = _hadoopConf.getSocketAddr(YarnConfiguration.RM_ADDRESS, YarnConfiguration.DEFAULT_RM_ADDRESS, YarnConfiguration.DEFAULT_RM_PORT);
-        _yarn = new YarnClientImpl(_yarnRMaddr);
+        _yarn = new YarnClientImpl();
         _stormConf = stormConf;
         _appId = appId;
         _yarn.init(_hadoopConf);
