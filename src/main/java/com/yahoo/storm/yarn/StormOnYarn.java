@@ -17,7 +17,6 @@
 package com.yahoo.storm.yarn;
 
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.Enumeration;
@@ -61,7 +60,6 @@ public class StormOnYarn {
     @SuppressWarnings("rawtypes")
     private Map _stormConf;
     private MasterClient _client = null;
-    private InetSocketAddress _yarnRMaddr;
 
     private StormOnYarn(@SuppressWarnings("rawtypes") Map stormConf) {
         this(null, stormConf);
@@ -69,7 +67,6 @@ public class StormOnYarn {
 
     private StormOnYarn(ApplicationId appId, @SuppressWarnings("rawtypes") Map stormConf) {        
         _hadoopConf = new YarnConfiguration();  
-        _yarnRMaddr = _hadoopConf.getSocketAddr(YarnConfiguration.RM_ADDRESS, YarnConfiguration.DEFAULT_RM_ADDRESS, YarnConfiguration.DEFAULT_RM_PORT);
         _yarn = new YarnClientImpl();
         _stormConf = stormConf;
         _appId = appId;
