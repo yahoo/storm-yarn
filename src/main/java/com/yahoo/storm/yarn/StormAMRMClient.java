@@ -18,17 +18,23 @@ package com.yahoo.storm.yarn;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ContainerManager;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerResponse;
@@ -39,10 +45,12 @@ import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.ipc.YarnRPC;
+import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,7 +70,7 @@ class StormAMRMClient extends AMRMClientImpl {
   private final Priority DEFAULT_PRIORITY = Records.newRecord(Priority.class);
   private final Set<Container> containers;
   private volatile boolean supervisorsAreToRun = false;
-  private int numSupervisors;
+  private AtomicInteger numSupervisors;
   private Resource maxResourceCapability;
 
   public StormAMRMClient(ApplicationAttemptId appAttemptId,
@@ -74,6 +82,7 @@ class StormAMRMClient extends AMRMClientImpl {
     Integer pri = Utils.getInt(storm_conf.get(Config.MASTER_CONTAINER_PRIORITY));
     this.DEFAULT_PRIORITY.setPriority(pri);
     this.containers = new TreeSet<Container>();
+    numSupervisors = new AtomicInteger(0);
   }
 
   private ContainerRequest setupContainerAskForRM(int numContainers) {
@@ -98,12 +107,14 @@ class StormAMRMClient extends AMRMClientImpl {
   }
 
   private void addSupervisorsRequest() {
-    ContainerRequest req = setupContainerAskForRM(this.numSupervisors);
-    super.addContainerRequest(req);
+      int num = numSupervisors.getAndSet(0);
+      if (num >0) {
+          ContainerRequest req = setupContainerAskForRM(num);
+          super.addContainerRequest(req);
+      }
   }
   
-  public synchronized boolean
-      addAllocatedContainers(List<Container> containers) {
+  public synchronized boolean addAllocatedContainers(List<Container> containers) {
     return this.containers.addAll(containers);
   }
 
@@ -123,7 +134,7 @@ class StormAMRMClient extends AMRMClientImpl {
   }
 
   public synchronized void addSupervisors(int number) {
-    this.numSupervisors += number;
+    this.numSupervisors.getAndAdd(number);
     if (this.supervisorsAreToRun) {
       LOG.info("Added " + number + " supervisors, and requesting containers...");
       addSupervisorsRequest();
@@ -132,65 +143,87 @@ class StormAMRMClient extends AMRMClientImpl {
     }
   }
 
-  public void launchSupervisorOnContainer(Container container)
-      throws IOException {
-    LOG.info("Connecting to ContainerManager for containerid=" + container.getId());
-    String cmIpPortStr = container.getNodeId().getHost() + ":"
-          + container.getNodeId().getPort();
-    InetSocketAddress cmAddress = NetUtils.createSocketAddr(cmIpPortStr);
-    LOG.info("Connecting to ContainerManager at " + cmIpPortStr);
-    ContainerManager proxy = ((ContainerManager) rpc.getProxy(ContainerManager.class, cmAddress, hadoopConf));
+  protected ContainerManager getCMProxy(Container container, ContainerId containerID) throws IOException {
+      NodeId nodeId = container.getNodeId();
+      String cmIpPortStr = nodeId.getHost() + ":" + nodeId.getPort();
+      final InetSocketAddress cmAddr = NetUtils.createSocketAddr(cmIpPortStr);
 
+      UserGroupInformation user;
+      if (UserGroupInformation.isSecurityEnabled()) {
+          LOG.info("Connecting to ContainerManager via UGI with security mode");
+          // the user in createRemoteUser in this context has to be ContainerID
+          user = UserGroupInformation.createRemoteUser(containerID.toString());
+          user.addToken(ProtoUtils.convertFromProtoFormat(container.getContainerToken(), cmAddr));
+      } else {
+          LOG.info("Connecting to ContainerManager ...");
+          user = UserGroupInformation.getCurrentUser();
+      }
 
-    LOG.info("launchSupervisorOnContainer( id:"+container.getId()+" )");
-    ContainerLaunchContext launchContext = Records
-        .newRecord(ContainerLaunchContext.class);
+      ContainerManager proxy = user.doAs(new PrivilegedAction<ContainerManager>() {
+          @Override
+          public ContainerManager run() {
+              return (ContainerManager) rpc.getProxy(ContainerManager.class,
+                      cmAddr, hadoopConf);
+          } 
+      });   
+      return proxy; 
+  }
+  
+  public void launchSupervisorOnContainer(Container container) throws IOException {
+    ContainerId containerID = container.getId();
+    LOG.info("launchSupervisorOnContainer() for containerid=" + containerID);
+    ContainerManager proxy = getCMProxy(container, containerID);
 
-    launchContext.setContainerId(container.getId()); 
+    ContainerLaunchContext launchContext = Records.newRecord(ContainerLaunchContext.class);
+
+    launchContext.setContainerId(containerID); 
     launchContext.setResource(container.getResource());
-
+    String userShortName = null;
     try {
-      launchContext.setUser(UserGroupInformation.getCurrentUser().getShortUserName());
+        UserGroupInformation user = UserGroupInformation.getCurrentUser(); 
+        userShortName = user.getShortUserName();
+        launchContext.setUser(userShortName);
+        
+        Credentials credentials = user.getCredentials();
+        DataOutputBuffer dob = new DataOutputBuffer();
+        credentials.writeTokenStorageToStream(dob);
+        ByteBuffer securityTokens  = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+        launchContext.setContainerTokens(securityTokens);
     } catch (IOException e) {
-      LOG.info("Getting current user info failed when trying to launch the container"
-          + e.getMessage());
+        LOG.warn("Getting current user info failed when trying to launch the container"
+                + e.getMessage());
     }
- 
+    
     Map<String, String> env = new HashMap<String, String>();
     launchContext.setEnvironment(env);
-
+    env.put("STORM_LOG_DIR", ApplicationConstants.LOG_DIR_EXPANSION_VAR);
 
     Map<String, LocalResource> localResources =
         new HashMap<String, LocalResource>();
-    String stormVersion = Util.getStormVersion(this.storm_conf);
     String storm_zip_path = (String)storm_conf.get("storm.zip.path");
     Path zip = new Path(storm_zip_path);
     FileSystem fs = FileSystem.get(this.hadoopConf);
     localResources.put("storm", Util.newYarnAppResource(fs, zip,
-        LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
+        LocalResourceType.ARCHIVE, LocalResourceVisibility.PRIVATE));
 
-    String appHome = Util.getApplicationHomeForId(this.appAttemptId.toString());
-    
-    Path dirDst = Util.createConfigurationFileInFs(
+    String appHome = Util.getApplicationHomeForId(this.appAttemptId.toString());    
+    Path confDst = Util.createConfigurationFileInFs(
             fs, appHome, this.storm_conf, this.hadoopConf);
+    localResources.put("conf", Util.newYarnAppResource(fs, confDst));
     
-    localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
-    
-    launchContext.setLocalResources(localResources);
+    launchContext.setLocalResources(localResources);    
     
     List<String> supervisorArgs = Util.buildSupervisorCommands(this.storm_conf);
-    
     launchContext.setCommands(supervisorArgs);
-
    
-    StartContainerRequest startRequest =
-        Records.newRecord(StartContainerRequest.class);
+    StartContainerRequest startRequest = Records.newRecord(StartContainerRequest.class);
     startRequest.setContainerLaunchContext(launchContext);
     
     LOG.info("launchSupervisorOnContainer: startRequest prepared, calling startContainer. "+startRequest);
     try {
       StartContainerResponse response = proxy.startContainer(startRequest);
-      LOG.info("Got a start container response "+response);
+      if (userShortName != null)
+      LOG.info("Supervisor log: http://"+container.getNodeHttpAddress()+"/node/containerlogs/"+containerID.toString()+"/"+userShortName+"/supervisor.log");
     } catch (Exception e) {
        LOG.error("Caught an exception while trying to start a container", e);
        System.exit(-1);

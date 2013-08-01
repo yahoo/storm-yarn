@@ -25,8 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yahoo.storm.yarn.Client.ClientCommand;
+import com.yahoo.storm.yarn.generated.StormMaster;
 
-public class LaunchCommand implements ClientCommand {
+class LaunchCommand implements ClientCommand {
   private static final Logger LOG = LoggerFactory.getLogger(LaunchCommand.class);
 
   @Override
@@ -36,6 +37,7 @@ public class LaunchCommand implements ClientCommand {
     opts.addOption("queue", true, "RM Queue in which this application is to be submitted");
     opts.addOption("stormHome", true, "Storm Home Directory");
     opts.addOption("output", true, "Output file");
+    opts.addOption("stormConfOutput", true, "storm.yaml file");
     opts.addOption("stormZip", true, "file path of storm.zip");
     return opts;
   }
@@ -52,7 +54,7 @@ public class LaunchCommand implements ClientCommand {
       //TODO we should probably have a good guess here, but for now
       amSize = 4096; //4GB
     }
-    
+        
     StormOnYarn storm = null;
     try {
       storm = StormOnYarn.launchApplication(appName, 
@@ -61,6 +63,28 @@ public class LaunchCommand implements ClientCommand {
                   storm_zip_location);
       LOG.debug("Submitted application's ID:" + storm.getAppId());
 
+      //download storm.yaml file
+      String storm_yaml_output = cl.getOptionValue("stormConfOutput");
+      if (storm_yaml_output!=null && storm_yaml_output.length()>0) {
+          //wait for application to be ready
+          int waitForStartup = (Integer) stormConf.get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS);
+          
+          //try to download stirm.yaml
+          int MAX_RETRIES = 10;
+          int retries = 0;
+          StormMaster.Client client = null;
+          while (client==null && retries<MAX_RETRIES) {
+              Thread.sleep(waitForStartup);
+              client = storm.getClient();              
+          }
+          
+          if (client != null) 
+              StormMasterCommand.downloadStormYaml(client, storm_yaml_output);
+          else
+              LOG.warn("No storm.yaml is downaloaded");
+      }
+      
+      //store appID to output
       String output = cl.getOptionValue("output");
       if (output == null)
           System.out.println(storm.getAppId());
@@ -70,6 +94,7 @@ public class LaunchCommand implements ClientCommand {
           os.flush();
           os.close();
       }
+      
     } finally {
       if (storm != null) {
         storm.stop();

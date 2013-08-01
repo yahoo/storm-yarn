@@ -17,6 +17,7 @@ master.thrift.port: 9000
 master.initial-num-supervisors: 1
 master.container.priority: 0
 master.heartbeat.interval.millis: 1000
+master.timeout.secs: 1000
 nimbusui.startup.ms: 10000
 
 ui.port: 7070

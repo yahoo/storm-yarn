@@ -78,25 +78,23 @@ public class MasterServer extends ThriftServer {
               List<Container> allocatedContainers = allocResponse.getAMResponse().getAllocatedContainers();
               if (allocatedContainers.size() > 0) {
                 // Add newly allocated containers to the client.
-                LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
+                LOG.info("HB: Received allocated containers (" + allocatedContainers.size() + ")");
                 client.addAllocatedContainers(allocatedContainers);
                 if (client.supervisorsAreToRun()) {
-                  LOG.debug("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
+                  LOG.info("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
                   launcherQueue.addAll(allocatedContainers);
                 } else {
-                  LOG.debug("HB: Supervisors are to stop, so releasing all containers...");
+                  LOG.info("HB: Supervisors are to stop, so releasing all containers...");
                   client.stopAllSupervisors();
                 }
               }
 
               List<ContainerStatus> completedContainers =
-                  allocResponse.getAMResponse().getCompletedContainersStatuses();
-              
+                  allocResponse.getAMResponse().getCompletedContainersStatuses();              
               if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
-                LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
-                client.startAllSupervisors();
+                LOG.info("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
+                client.stopAllSupervisors();
               }
-            
             }
           } catch (Throwable t) {
             // Something happened we could not handle.  Make sure the AM goes
@@ -163,8 +161,7 @@ public class MasterServer extends ThriftServer {
             rmClient.setMaxResource(resp.getMaximumResourceCapability());
             LOG.info("Starting HB thread");
             server.initAndStartHeartbeat(rmClient, launcherQueue,
-                    (Integer) storm_conf
-                    .get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS));
+                    (Integer) storm_conf.get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS));
             LOG.info("Starting launcher");
             initAndStartLauncher(rmClient, launcherQueue);
             rmClient.startAllSupervisors();

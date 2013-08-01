@@ -18,8 +18,10 @@ package com.yahoo.storm.yarn;
 
 import java.io.FileWriter;
 import java.util.Map;
+
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+import org.apache.thrift7.TException;
 import org.apache.thrift7.transport.TTransportException;
 import org.json.simple.JSONValue;
 import org.slf4j.Logger;
@@ -29,7 +31,7 @@ import org.yaml.snakeyaml.Yaml;
 import com.yahoo.storm.yarn.Client.ClientCommand;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
-public class StormMasterCommand implements ClientCommand {
+class StormMasterCommand implements ClientCommand {
     private static final Logger LOG = LoggerFactory.getLogger(StormMasterCommand.class);
     enum COMMAND {
         GET_STORM_CONFIG,  
@@ -75,31 +77,7 @@ public class StormMasterCommand implements ClientCommand {
             StormMaster.Client client = storm.getClient();
             switch (cmd) {
             case GET_STORM_CONFIG:
-                try { 
-                    conf_str = client.getStormConf();                  
-                } catch (TTransportException ex) {
-                    LOG.info("Exception in getStormConfig:"+ex.toString());
-                }
-                if (conf_str != null) {
-                    try {
-                        Object json = JSONValue.parse(conf_str);
-                        Map<?, ?> conf = (Map<?, ?>)json;
-                        Yaml yaml = new Yaml();
-                        
-                        String output = cl.getOptionValue("output");
-                        if (output == null) {
-                            yaml.dump(conf);
-                        } else {
-                            FileWriter out = new FileWriter(output);
-                            yaml.dump(conf, out);
-                            out.flush();
-                            out.close();
-                            LOG.info("storm.yaml downloaded into "+output);
-                        }
-                    } catch (Exception ex) {
-                        LOG.info("Exception in getStormConfig "+ ex.toString());
-                    }
-                }
+                downloadStormYaml(client, cl.getOptionValue("output"));
                 break;
 
             case SET_STORM_CONFIG:
@@ -180,6 +158,39 @@ public class StormMasterCommand implements ClientCommand {
             if (storm != null) {
                 storm.stop();
             }
+        }
+    }
+
+    public static void downloadStormYaml(StormMaster.Client client, String storm_yaml_output) {
+        String  conf_str = "Not Avaialble";
+
+        //fetch storm.yaml from Master
+        try { 
+            conf_str = client.getStormConf();                  
+        } catch (TTransportException ex) {
+            LOG.warn("Exception in downloading storm.yaml:"+ex.toString());
+        } catch (TException e) {
+            LOG.warn("Exception in downloading storm.yaml:"+e.toString());
+        }
+
+        //storm the fetched storm.yaml into storm_yaml_output or stdout 
+        try {
+            Object json = JSONValue.parse(conf_str);
+            Map<?, ?> conf = (Map<?, ?>)json;
+            Yaml yaml = new Yaml();
+
+            if (storm_yaml_output == null) {
+                LOG.info("storm.yaml downloaded:");
+                System.out.println(yaml.dump(conf));
+            } else {
+                FileWriter out = new FileWriter(storm_yaml_output);
+                yaml.dump(conf, out);
+                out.flush();
+                out.close();
+                LOG.info("storm.yaml downloaded into "+storm_yaml_output);
+            }
+        } catch (Exception ex) {
+            LOG.error("Exception in storing storm.yaml. "+ ex.toString());
         }
     }
 }
