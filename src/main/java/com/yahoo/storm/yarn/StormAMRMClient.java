@@ -47,8 +47,7 @@ import org.slf4j.LoggerFactory;
 import backtype.storm.utils.Utils;
 
 class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
-    private static final Logger LOG = LoggerFactory
-            .getLogger(StormAMRMClient.class);
+    private static final Logger LOG = LoggerFactory.getLogger(StormAMRMClient.class);
 
     @SuppressWarnings("rawtypes")
     private final Map storm_conf;
@@ -124,20 +123,16 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
     public synchronized void addSupervisors(int number) {
         this.numSupervisors += number;
         if (this.supervisorsAreToRun) {
-            LOG.info("Added " + number
-                    + " supervisors, and requesting containers...");
+            LOG.info("Added " + number + " supervisors, and requesting containers...");
             addSupervisorsRequest();
         } else {
-            LOG.info("Added " + number
-                    + " supervisors, but not requesting containers now.");
+            LOG.info("Added " + number + " supervisors, but not requesting containers now.");
         }
     }
 
-    public void launchSupervisorOnContainer(Container container)
-            throws IOException {
+    public void launchSupervisorOnContainer(Container container) throws IOException {
         // create a container launch context
-        ContainerLaunchContext launchContext = Records
-                .newRecord(ContainerLaunchContext.class);
+        ContainerLaunchContext launchContext = Records.newRecord(ContainerLaunchContext.class);
 
         // CLC: env
         Map<String, String> env = new HashMap<String, String>();
@@ -147,12 +142,11 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
         Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
         String storm_zip_path = (String) storm_conf.get("storm.zip.path");
         Path zip = new Path(storm_zip_path);
-        FileSystem fs = FileSystem.get(this.hadoopConf);
+        FileSystem fs = FileSystem.get(hadoopConf);
         localResources.put("storm", Util.newYarnAppResource(fs, zip,
                 LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
 
-        String appHome = Util.getApplicationHomeForId(this.appAttemptId
-                .toString());
+        String appHome = Util.getApplicationHomeForId(appAttemptId.toString());
         Path dirDst = Util.createConfigurationFileInFs(fs, appHome,
                 this.storm_conf, this.hadoopConf);
 
@@ -160,16 +154,14 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
         launchContext.setLocalResources(localResources);
 
         // CLC: command
-        List<String> supervisorArgs = Util
-                .buildSupervisorCommands(this.storm_conf);
+        List<String> supervisorArgs = Util.buildSupervisorCommands(this.storm_conf);
         launchContext.setCommands(supervisorArgs);
 
         // start container
         try {
             nmClient.startContainer(container, launchContext);
         } catch (Exception e) {
-            LOG.error("Caught an exception while trying to start a container",
-                    e);
+            LOG.error("Caught an exception while trying to start a container", e);
             System.exit(-1);
         }
     }

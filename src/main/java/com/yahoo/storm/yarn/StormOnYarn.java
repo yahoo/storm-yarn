@@ -16,11 +16,16 @@
 
 package com.yahoo.storm.yarn;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.IOException;
+import java.lang.ProcessBuilder.Redirect;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
@@ -89,8 +94,7 @@ public class StormOnYarn {
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized StormMaster.Client getClient() throws YarnException,
-            IOException {
+    public synchronized StormMaster.Client getClient() throws YarnException, IOException {
         if (_client == null) {
             // TODO need a way to force this to reconnect in case of an error
             ApplicationReport report = _yarn.getApplicationReport(_appId);
@@ -182,9 +186,24 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
                 "./AppMaster.jar");
-        // TODO need a better way to get the storm .zip created and put where it
-        // needs to go.
 
+        //Make sure that AppMaster has access to all YARN JARs                                                 
+        List<String> yarn_classpath_cmd = java.util.Arrays.asList("yarn", "classpath");
+        ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd).redirectError(Redirect.INHERIT);
+        File classpath_file = File.createTempFile("storm_yarn_classpath", "txt");
+        pb.redirectOutput(ProcessBuilder.Redirect.to(classpath_file));
+        pb.environment().putAll(System.getenv());
+        Process proc = pb.start();
+        proc.waitFor();
+        BufferedReader reader = new BufferedReader(new FileReader(classpath_file));
+        StringBuilder yarn_class_path = new StringBuilder();
+        String line = "";
+        while( ( line = reader.readLine() ) != null)
+            yarn_class_path.append(line);
+        reader.close();
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path.toString());
+
+        //storm classpath
         String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), 
                 "./storm/" + stormHomeInZip + "/*");
@@ -197,36 +216,6 @@ public class StormOnYarn {
             Apps.addToEnvironment(env, Environment.CLASSPATH.name(), c.trim());
         }
 
-        // For tests purpose, add maven generated classpath
-        Apps.addToEnvironment(env,Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.commons.configuration.Configuration")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.commons.cli.Options")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.net.NetUtils")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.conf.Configuration")));
-        Apps.addToEnvironment(env,Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.security.authentication.client.AuthenticationException")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.yarn.exceptions.YarnException")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.yarn.api.ApplicationConstants")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.yarn.api.records.ApplicationAttemptId")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.yarn.conf.YarnConfiguration")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.service.Service")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.yarn.util.ConverterUtils")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(),
-                findContainingJar(Class.forName("com.google.protobuf.MessageOrBuilder")));
-
         env.put("appJar", appMasterJar);
         env.put("appName", appName);
         env.put("appId", new Integer(_appId.getId()).toString());
@@ -236,24 +225,6 @@ public class StormOnYarn {
         Vector<String> vargs = new Vector<String>();
 
         // TODO need a better way to do debugging
-        vargs.add("find");
-        vargs.add(".");
-        vargs.add("-follow");
-        vargs.add("|");
-        vargs.add("xargs");
-        vargs.add("ls");
-        vargs.add("-ld");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/files");
-        vargs.add("&&");
-        vargs.add("echo");
-        vargs.add("$CLASSPATH");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR
-                + "/classpath");
-        vargs.add("&&");
-        vargs.add("echo");
-        vargs.add("$PWD");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/pwd");
-        vargs.add("&&");
         vargs.add("java");
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
         // vargs.add("-verbose:class");

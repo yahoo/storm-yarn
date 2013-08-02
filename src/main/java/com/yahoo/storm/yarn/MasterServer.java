@@ -49,16 +49,15 @@ import com.yahoo.storm.yarn.generated.StormMaster;
 import com.yahoo.storm.yarn.generated.StormMaster.Processor;
 
 public class MasterServer extends ThriftServer {
-    private static final Logger LOG = LoggerFactory
-            .getLogger(MasterServer.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MasterServer.class);
     private StormMasterServerHandler _handler;
 
     private Thread initAndStartHeartbeat(final StormAMRMClient client,
             final BlockingQueue<Container> launcherQueue,
             final int heartBeatIntervalMs) {
         Thread thread = new Thread() {
-            @Override
-            public void run() {
+        @Override
+        public void run() {
                 try {
                     while (client.getServiceState() == Service.STATE.STARTED
                             && !Thread.currentThread().isInterrupted()) {
@@ -69,23 +68,21 @@ public class MasterServer extends ThriftServer {
                         AllocateResponse allocResponse = client.allocate(0.5f);
 
                         AMCommand am_command = allocResponse.getAMCommand();
-                        if (AMCommand.AM_SHUTDOWN.equals(am_command)) {
-                            LOG.info("Got AM_SHUTDOWN from the RM");
+                        if (am_command!=null && 
+                                (am_command.equals(AMCommand.AM_SHUTDOWN) || am_command.equals(AMCommand.AM_RESYNC))) {
+                            LOG.info("Got AM_SHUTDOWN or AM_RESYNC from the RM");
                             _handler.stop();
                             System.exit(0);
                         }
 
-                        List<Container> allocatedContainers = allocResponse
-                                .getAllocatedContainers();
+                        List<Container> allocatedContainers = allocResponse.getAllocatedContainers();
                         if (allocatedContainers.size() > 0) {
                             // Add newly allocated containers to the client.
-                            LOG.debug("HB: Received allocated containers ("
-                                    + allocatedContainers.size() + ")");
+                            LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
                             client.addAllocatedContainers(allocatedContainers);
                             if (client.supervisorsAreToRun()) {
                                 LOG.debug("HB: Supervisors are to run, so queueing ("
-                                        + allocatedContainers.size()
-                                        + ") containers...");
+                                        + allocatedContainers.size() + ") containers...");
                                 launcherQueue.addAll(allocatedContainers);
                             } else {
                                 LOG.debug("HB: Supervisors are to stop, so releasing all containers...");
@@ -106,10 +103,8 @@ public class MasterServer extends ThriftServer {
 
                     }
                 } catch (Throwable t) {
-                    // Something happened we could not handle. Make sure the AM
-                    // goes
-                    // down so that we are not surprised later on that our heart
-                    // stopped..
+                    // Something happened we could not handle. Make sure the AM goes
+                    // down so that we are not surprised later on that our heart stopped..
                     LOG.error("Unhandled error in AM: ", t);
                     _handler.stop();
                     System.exit(1);
@@ -137,9 +132,8 @@ public class MasterServer extends ThriftServer {
         }
 
         Options opts = new Options();
-        opts.addOption("app_attempt_id", true,
-                "App Attempt ID. Not to be used "
-                        + "unless for testing purposes");
+        opts.addOption("app_attempt_id", true, 
+                    "App Attempt ID. Not to be used unless for testing purposes");
 
         @SuppressWarnings("rawtypes")
         Map storm_conf = Config.readStormConfig(null);
@@ -168,16 +162,14 @@ public class MasterServer extends ThriftServer {
             rmClient.setMaxResource(resp.getMaximumResourceCapability());
             LOG.info("Starting HB thread");
             server.initAndStartHeartbeat(rmClient, launcherQueue,
-                    (Integer) storm_conf
-                            .get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS));
+                    (Integer) storm_conf.get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS));
             LOG.info("Starting launcher");
             initAndStartLauncher(rmClient, launcherQueue);
             rmClient.startAllSupervisors();
             LOG.info("Starting Master Thrift Server");
             server.serve();
             LOG.info("StormAMRMClient::unregisterApplicationMaster");
-            rmClient.unregisterApplicationMaster(
-                    FinalApplicationStatus.SUCCEEDED, "AllDone", null);
+            rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, "AllDone", null);
         } finally {
             if (server.isServing()) {
                 LOG.info("Stop Master Thrift Server");
@@ -200,8 +192,7 @@ public class MasterServer extends ThriftServer {
                         && !Thread.currentThread().isInterrupted()) {
                     try {
                         container = launcherQueue.take();
-                        LOG.info("LAUNCHER: Taking container with id ("
-                                + container.getId() + ") from the queue.");
+                        LOG.info("LAUNCHER: Taking container with id (" + container.getId() + ") from the queue.");
                         if (client.supervisorsAreToRun()) {
                             LOG.info("LAUNCHER: Supervisors are to run, so launching container id ("
                                     + container.getId() + ")");
@@ -227,8 +218,7 @@ public class MasterServer extends ThriftServer {
         thread.start();
     }
 
-    public MasterServer(@SuppressWarnings("rawtypes") Map storm_conf,
-            StormAMRMClient client) {
+    public MasterServer(@SuppressWarnings("rawtypes") Map storm_conf, StormAMRMClient client) {
         this(storm_conf, new StormMasterServerHandler(storm_conf, client));
     }
 
@@ -246,8 +236,7 @@ public class MasterServer extends ThriftServer {
             LOG.info("launch ui");
             _handler.startUI();
 
-            int numSupervisors = Utils.getInt(storm_conf
-                    .get(Config.MASTER_NUM_SUPERVISORS));
+            int numSupervisors = Utils.getInt(storm_conf.get(Config.MASTER_NUM_SUPERVISORS));
             LOG.info("launch " + numSupervisors + " supervisors");
             _handler.addSupervisors(numSupervisors);
         } catch (Exception e) {
