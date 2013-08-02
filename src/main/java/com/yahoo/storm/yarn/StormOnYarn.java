@@ -50,6 +50,8 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import backtype.storm.utils.Utils;
+
 import com.yahoo.storm.yarn.Config;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
@@ -93,23 +95,37 @@ public class StormOnYarn {
     @SuppressWarnings("unchecked")
     public synchronized StormMaster.Client getClient() throws YarnRemoteException {
         if (_client == null) {
-            //TODO need a way to force this to reconnect in case of an error
-            ApplicationReport report = _yarn.getApplicationReport(_appId);
-            LOG.info("application report for "+_appId+" :"+report.getHost()+":"+report.getRpcPort());
-            String host = report.getHost();
-            if (host == null) {
-              throw new RuntimeException(
-                  "No host returned for Application Master " + _appId);
+            String host = null;
+            int port = 0;
+            //wait for application to be ready
+            int max_wait_for_report = Utils.getInt(_stormConf.get(Config.YARN_REPORT_WAIT_MILLIS));
+            int waited=0; 
+            while (waited<max_wait_for_report) {
+                ApplicationReport report = _yarn.getApplicationReport(_appId);
+                host = report.getHost();
+                port = report.getRpcPort();
+                if (host == null || port==0) { 
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                    }
+                    waited += 1000;
+                } else {
+                    break;
+                }
             }
+            if (host == null || port==0) {
+                LOG.info("No host/port returned for Application Master " + _appId);
+                return null;
+            }
+            
+            LOG.info("application report for "+_appId+" :"+host+":"+port);
             if (_stormConf == null ) {
-              _stormConf = new HashMap<Object,Object>();
+                _stormConf = new HashMap<Object,Object>();
             }
             _stormConf.put(Config.MASTER_HOST, host);
-            int port = report.getRpcPort();
             _stormConf.put(Config.MASTER_THRIFT_PORT, port);
             LOG.info("Attaching to "+host+":"+port+" to talk to app master "+_appId);
-            //TODO need a better work around to the config not being set.
-            _stormConf.put(Config.MASTER_TIMEOUT_SECS, 10);
             _client = MasterClient.getConfiguredClient(_stormConf);
         }
         return _client.getClient();
