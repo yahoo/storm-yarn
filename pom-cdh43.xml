@@ -17,42 +17,42 @@
 	<name>storm-yarn</name>
 	<url>http://maven.apache.org</url>
 	<repositories>
-		<repository>
-			<id>central</id>
-			<url>http://repo1.maven.org/maven2/</url>
-			<snapshots>
-				<enabled>false</enabled>
-			</snapshots>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-		</repository>
-		<repository>
-			<id>clojars</id>
-			<url>https://clojars.org/repo/</url>
-			<snapshots>
-				<enabled>true</enabled>
-			</snapshots>
-			<releases>
-				<enabled>true</enabled>
-			</releases>
-		</repository>
+        <repository>
+            <id>central</id>
+            <url>http://repo1.maven.org/maven2/</url>
+            <snapshots>
+                <enabled>false</enabled>
+            </snapshots>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </repository>
+        <repository>
+            <id>clojars</id>
+            <url>https://clojars.org/repo/</url>
+            <snapshots>
+                <enabled>true</enabled>
+            </snapshots>
+            <releases>
+                <enabled>true</enabled>
+            </releases>
+        </repository>
         <repository>
             <id>cloudera</id>
             <url>https://repository.cloudera.com/artifactory/cloudera-repos/</url>
         </repository>
-		<repository>
-			<id>apache.snapshots</id>
-			<url>http://repository.apache.org/content/repositories/snapshots/</url>
-		</repository>
+        <repository>
+            <id>apache.snapshots</id>
+            <url>http://repository.apache.org/content/repositories/snapshots/</url>
+        </repository>
 
-		<!-- Special: following this instruction alternative 3 http://slf4j.org/faq.html#excludingJCL -->
-		<repository>
-			<id>version99</id>
-			<!-- highly available repository serving empty artifacts -->
-			<url>http://version99.qos.ch/</url>
-		</repository>
-	</repositories>
+        <!-- Special: following this instruction alternative 3 http://slf4j.org/faq.html#excludingJCL -->
+        <repository>
+            <id>version99</id>
+            <!-- highly available repository serving empty artifacts -->
+            <url>http://version99.qos.ch/</url>
+        </repository>
+    </repositories>
 	<properties>
 		<storm.version>0.9.0-wip21</storm.version>
 		<hadoop.version>2.0.0-cdh4.3.0</hadoop.version>
