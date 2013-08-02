@@ -115,13 +115,13 @@ public class StormOnYarn {
                 }
             }
             if (host == null || port==0) {
-		LOG.info("No host/port returned for Application Master " + _appId);
-		return null;
+                LOG.info("No host/port returned for Application Master " + _appId);
+                return null;
             }
             
             LOG.info("application report for "+_appId+" :"+host+":"+port);
             if (_stormConf == null ) {
-		_stormConf = new HashMap<Object,Object>();
+                _stormConf = new HashMap<Object,Object>();
             }
             _stormConf.put(Config.MASTER_HOST, host);
             _stormConf.put(Config.MASTER_THRIFT_PORT, port);
