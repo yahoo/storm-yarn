@@ -66,18 +66,8 @@ class LaunchCommand implements ClientCommand {
       //download storm.yaml file
       String storm_yaml_output = cl.getOptionValue("stormConfOutput");
       if (storm_yaml_output!=null && storm_yaml_output.length()>0) {
-          //wait for application to be ready
-          int waitForStartup = (Integer) stormConf.get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS);
-          
           //try to download stirm.yaml
-          int MAX_RETRIES = 10;
-          int retries = 0;
-          StormMaster.Client client = null;
-          while (client==null && retries<MAX_RETRIES) {
-              Thread.sleep(waitForStartup);
-              client = storm.getClient();              
-          }
-          
+          StormMaster.Client client =  storm.getClient();                        
           if (client != null) 
               StormMasterCommand.downloadStormYaml(client, storm_yaml_output);
           else
