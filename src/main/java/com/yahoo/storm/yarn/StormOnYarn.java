@@ -16,12 +16,16 @@
 
 package com.yahoo.storm.yarn;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.lang.ProcessBuilder.Redirect;
 import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
@@ -195,32 +199,30 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
         //TODO need a better way to get the storm .zip created and put where it needs to go.
 
-        String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
- 
         for (String c : _hadoopConf.getStrings(
                 YarnConfiguration.YARN_APPLICATION_CLASSPATH,
                 YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
             Apps.addToEnvironment(env, Environment.CLASSPATH.name(), c.trim());
         }
         
-        //For tests purpose, add maven generated classpath     
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.commons.configuration.Configuration")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.commons.cli.Options")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.net.NetUtils")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.conf.Configuration")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.security.authentication.client.AuthenticationException")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.YarnException")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.api.ApplicationConstants")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.api.records.ApplicationAttemptId")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.conf.YarnConfiguration")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.service.Service")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.util.ConverterUtils")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.client.AMRMClientImpl")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("com.google.protobuf.MessageOrBuilder")));
+        //Make sure that AppMaster has access to all YARN JARs     
+        List<String> yarn_classpath_cmd = java.util.Arrays.asList("yarn", "classpath");
+        ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd).redirectError(Redirect.INHERIT);
+        pb.environment().putAll(System.getenv());
+        Process proc = pb.start();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream(), "UTF-8"));
+        String line = "";
+        StringBuilder yarn_class_path = new StringBuilder();
+        while ((line = reader.readLine() ) != null)
+            yarn_class_path.append(line); 
+        proc.waitFor();
+        reader.close();
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path.toString());
         
+        String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
+ 
         env.put("appJar", appMasterJar);
         env.put("appName", appName);
         env.put("appId", new Integer(_appId.getId()).toString());
@@ -228,25 +230,6 @@ public class StormOnYarn {
 
         // Set the necessary command to execute the application master
         Vector<String> vargs = new Vector<String>();
-
-        // TODO need a better way to do debugging
-        vargs.add("find");
-        vargs.add(".");
-        vargs.add("-follow");
-        vargs.add("|");
-        vargs.add("xargs");
-        vargs.add("ls");
-        vargs.add("-ld");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/files");
-        vargs.add("&&");
-        vargs.add("echo");
-        vargs.add("$CLASSPATH");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/classpath");
-        vargs.add("&&");
-        vargs.add("echo");
-        vargs.add("$PWD");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/pwd");
-        vargs.add("&&");
         vargs.add("java");
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
         //vargs.add("-verbose:class");
