@@ -50,10 +50,6 @@ class LaunchCommand implements ClientCommand {
     String storm_zip_location = cl.getOptionValue("stormZip");
     
     Integer amSize = (Integer) stormConf.get(Config.MASTER_SIZE_MB);
-    if (amSize == null) {
-      //TODO we should probably have a good guess here, but for now
-      amSize = 4096; //4GB
-    }
         
     StormOnYarn storm = null;
     try {
