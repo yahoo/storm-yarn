@@ -17,9 +17,8 @@
 package com.yahoo.storm.yarn;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -178,11 +177,13 @@ public class StormOnYarn {
         if (storm_zip_location != null) {
             zip = new Path(storm_zip_location);
             _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
+            _stormConf.put("storm.zip.visibility", "APPLICATION");
             localResources.put("storm", Util.newYarnAppResource(fs, zip,
-                    LocalResourceType.ARCHIVE, LocalResourceVisibility.PRIVATE));
+                    LocalResourceType.ARCHIVE, LocalResourceVisibility.APPLICATION));
         } else {
             zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");         
             _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
+            _stormConf.put("storm.zip.visibility", "PUBLIC");
             localResources.put("storm", Util.newYarnAppResource(fs, zip,
                     LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
         }
@@ -226,16 +227,14 @@ public class StormOnYarn {
         //Make sure that AppMaster has access to all YARN JARs     
         List<String> yarn_classpath_cmd = java.util.Arrays.asList("yarn", "classpath");
         ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd).redirectError(Redirect.INHERIT);
-        File classpath_file = File.createTempFile("storm_yarn_classpath", "txt");
-        pb.redirectOutput(ProcessBuilder.Redirect.to(classpath_file));
         pb.environment().putAll(System.getenv());
         Process proc = pb.start();
-        proc.waitFor();       
-        BufferedReader reader = new BufferedReader(new FileReader(classpath_file));
-        StringBuilder yarn_class_path = new StringBuilder();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream(), "UTF-8"));
         String line = "";
-        while( ( line = reader.readLine() ) != null)
-            yarn_class_path.append(line);
+        StringBuilder yarn_class_path = new StringBuilder();
+        while ((line = reader.readLine() ) != null)
+            yarn_class_path.append(line); 
+        proc.waitFor();
         reader.close();
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path.toString());
 
