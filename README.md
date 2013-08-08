@@ -35,8 +35,8 @@ Feel free to ask questions on storm-yarn's mailing list: http://groups.google.co
 Please install the following software first:
    * Java 7
       * To verify, please run "java -version". It should print out "java version \"1.7.0_x\"".
-   * Apache Hadoop 2.1.0-beta
-      * To verify, please run "yarn version". It should print out "Hadoop 2.1.0-beta" 
+   * Hadoop 2.1.0.2.0.4.0-38 (HortonWorks)
+      * To verify, please run "yarn version". It should print out "Hadoop 2.1.0.2.0.4.0-38"
 
    
 ## Build

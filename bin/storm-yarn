@@ -15,9 +15,35 @@
 #
 readonly STORM_ON_YARN_BIN="$(dirname "$(read-link "$0")")"
 readonly MASTER_JAR="$(ls "$STORM_ON_YARN_BIN"/../storm-yarn-*.jar "$STORM_ON_YARN_BIN"/../target/storm-yarn-*.jar 2> /dev/null | head -1)"
-readonly STORM_BIN="$(dirname "$(read-link "$(which storm)")")"
-YARN_CLASSPATH="$(yarn classpath)"
-STORM_CLASSPATH="$(storm classpath)"
+
+if [ `command -v storm` ]; then
+    readonly STORM_BIN="$(dirname "$(read-link "$(which storm)")")"
+    STORM_CLASSPATH="$(storm classpath)"
+else
+    echo "storm is not installed" >&2
+    exit 1
+fi
+
+if [ -n "${JAVA_HOME}" ]; then
+    RUNNER="${JAVA_HOME}/bin/java"
+else
+    if [ `command -v java` ]; then
+	RUNNER="java"
+    else
+	echo "JAVA_HOME is not set" >&2
+	exit 1
+    fi
+fi
+
+if [ `command -v yarn` ]; then
+    YARN_CLASSPATH="$(yarn classpath)"
+else
+    echo "yarn is not installed" >&2
+    exit 1
+fi
+
 CLASSPATH="$STORM_YARN_CONF_DIR:$MASTER_JAR:$YARN_CLASSPATH:$STORM_CLASSPATH:$HOME/.storm"
 
-java -cp "$CLASSPATH" -Dstorm.home="$STORM_BIN"/.. com.yahoo.storm.yarn.Client "$@"
+echo "$RUNNER" -cp "$CLASSPATH" -Dstorm.home="$STORM_BIN"/.. com.yahoo.storm.yarn.Client "$@"
+exec "$RUNNER" -cp "$CLASSPATH" -Dstorm.home="$STORM_BIN"/.. com.yahoo.storm.yarn.Client "$@"
+
