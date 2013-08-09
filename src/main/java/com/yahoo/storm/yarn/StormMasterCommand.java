@@ -190,7 +190,7 @@ class StormMasterCommand implements ClientCommand {
                 LOG.info("storm.yaml downloaded into "+storm_yaml_output);
             }
         } catch (Exception ex) {
-            LOG.error("Exception in storing storm.yaml. "+ ex.toString());
+            LOG.error("Exception in storing storm.yaml. ", ex);
         }
     }
 }
