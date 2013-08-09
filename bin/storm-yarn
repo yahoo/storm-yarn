@@ -44,6 +44,6 @@ fi
 
 CLASSPATH="$STORM_YARN_CONF_DIR:$MASTER_JAR:$YARN_CLASSPATH:$STORM_CLASSPATH:$HOME/.storm"
 
-echo "$RUNNER" -cp "$CLASSPATH" -Dstorm.home="$STORM_BIN"/.. com.yahoo.storm.yarn.Client "$@"
+#echo "$RUNNER" -cp "$CLASSPATH" -Dstorm.home="$STORM_BIN"/.. com.yahoo.storm.yarn.Client "$@"
 exec "$RUNNER" -cp "$CLASSPATH" -Dstorm.home="$STORM_BIN"/.. com.yahoo.storm.yarn.Client "$@"
 

@@ -180,8 +180,10 @@ public class StormOnYarn {
             zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");         
         }
         _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
-        localResources.put("storm", Util.newYarnAppResource(fs, zip,
-                LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
+        LocalResourceVisibility visibility = LocalResourceVisibility.PUBLIC;
+        if (!Util.isPublic(fs, zip))
+            visibility = LocalResourceVisibility.APPLICATION;
+        localResources.put("storm", Util.newYarnAppResource(fs, zip, LocalResourceType.ARCHIVE, visibility));
         
         Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf, _hadoopConf);
         // establish a symbolic link to conf directory
@@ -197,7 +199,6 @@ public class StormOnYarn {
         // add the runtime classpath needed for tests to work
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
-        //TODO need a better way to get the storm .zip created and put where it needs to go.
 
         for (String c : _hadoopConf.getStrings(
                 YarnConfiguration.YARN_APPLICATION_CLASSPATH,
