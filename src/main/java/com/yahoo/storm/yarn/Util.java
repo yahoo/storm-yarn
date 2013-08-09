@@ -16,6 +16,8 @@
 
 package com.yahoo.storm.yarn;
 
+import java.net.URI;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
@@ -37,11 +39,14 @@ import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -262,5 +267,57 @@ class Util {
       }
       return ".storm" + Path.SEPARATOR + id;
   }
-}
 
+    /**
+     * Returns a boolean to denote whether a cache file is visible to all(public)
+     * or not
+     * @param fs  Hadoop file system
+     * @param path  file path
+     * @return true if the path is visible to all, false otherwise
+     * @throws IOException
+     */
+    static boolean isPublic(FileSystem fs, Path path) throws IOException {
+        //the leaf level file should be readable by others
+        if (!checkPermissionOfOther(fs, path, FsAction.READ)) {
+            return false;
+        }
+        return ancestorsHaveExecutePermissions(fs, path.getParent());
+    }
+
+    /**
+     * Checks for a given path whether the Other permissions on it
+     * imply the permission in the passed FsAction
+     * @param fs
+     * @param path
+     * @param action
+     * @return true if the path in the uri is visible to all, false otherwise
+     * @throws IOException
+     */
+    private static boolean checkPermissionOfOther(FileSystem fs, Path path,
+                                                  FsAction action) throws IOException {
+        FileStatus status = fs.getFileStatus(path);
+        FsPermission perms = status.getPermission();
+        FsAction otherAction = perms.getOtherAction();
+        if (otherAction.implies(action)) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Returns true if all ancestors of the specified path have the 'execute'
+     * permission set for all users (i.e. that other users can traverse
+     * the directory hierarchy to the given path)
+     */
+    static boolean ancestorsHaveExecutePermissions(FileSystem fs, Path path) throws IOException {
+        Path current = path;
+        while (current != null) {
+            //the subdirs in the path should have execute permissions for others
+            if (!checkPermissionOfOther(fs, current, FsAction.EXECUTE)) {
+                return false;
+            }
+            current = current.getParent();
+        }
+        return true;
+    }
+}
