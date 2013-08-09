@@ -177,17 +177,19 @@ public class StormOnYarn {
         if (storm_zip_location != null) {
             zip = new Path(storm_zip_location);
             _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
-            _stormConf.put("storm.zip.visibility", "APPLICATION");
-            localResources.put("storm", Util.newYarnAppResource(fs, zip,
-                    LocalResourceType.ARCHIVE, LocalResourceVisibility.APPLICATION));
         } else {
             zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");         
             _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
-            _stormConf.put("storm.zip.visibility", "PUBLIC");
-            localResources.put("storm", Util.newYarnAppResource(fs, zip,
-                    LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
         }
-        
+        LocalResourceVisibility visibility = LocalResourceVisibility.PUBLIC;
+        _stormConf.put("storm.zip.visibility", "PUBLIC");
+        if (!Util.isPublic(fs, zip)) {
+            visibility =  LocalResourceVisibility.APPLICATION;
+            _stormConf.put("storm.zip.visibility", "APPLICATION");
+        }
+        localResources.put("storm", Util.newYarnAppResource(fs, zip,
+                LocalResourceType.ARCHIVE, visibility));
+
         Path confDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf, _hadoopConf);
         // establish a symbolic link to conf directory
         localResources.put("conf", Util.newYarnAppResource(fs, confDst));
@@ -217,7 +219,6 @@ public class StormOnYarn {
         // add the runtime classpath needed for tests to work
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
-        //TODO need a better way to get the storm .zip created and put where it needs to go.
 
         for (String c : _hadoopConf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,
                 Constants.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
