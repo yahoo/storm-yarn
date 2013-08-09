@@ -231,7 +231,8 @@ class StormAMRMClient extends AMRMClientImpl {
     try {
       StartContainerResponse response = proxy.startContainer(startRequest);
       if (userShortName != null)
-      LOG.info("Supervisor log: http://"+container.getNodeHttpAddress()+"/node/containerlogs/"+containerID.toString()+"/"+userShortName+"/supervisor.log");
+          LOG.info("Supervisor log: http://"+container.getNodeHttpAddress()+
+                  "/node/containerlogs/"+containerID.toString()+"/"+userShortName+"/supervisor.log");
     } catch (Exception e) {
        LOG.error("Caught an exception while trying to start a container", e);
        System.exit(-1);

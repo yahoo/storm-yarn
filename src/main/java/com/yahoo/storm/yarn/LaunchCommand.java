@@ -48,7 +48,6 @@ class LaunchCommand implements ClientCommand {
     String queue = cl.getOptionValue("queue", "default");
     
     String storm_zip_location = cl.getOptionValue("stormZip");
-    
     Integer amSize = (Integer) stormConf.get(Config.MASTER_SIZE_MB);
         
     StormOnYarn storm = null;
@@ -62,12 +61,12 @@ class LaunchCommand implements ClientCommand {
       //download storm.yaml file
       String storm_yaml_output = cl.getOptionValue("stormConfOutput");
       if (storm_yaml_output!=null && storm_yaml_output.length()>0) {
-          //try to download stirm.yaml
+          //try to download storm.yaml
           StormMaster.Client client =  storm.getClient();                        
           if (client != null) 
               StormMasterCommand.downloadStormYaml(client, storm_yaml_output);
           else
-              LOG.warn("No storm.yaml is downaloaded");
+              LOG.warn("No storm.yaml is downloaded");
       }
       
       //store appID to output
@@ -80,7 +79,6 @@ class LaunchCommand implements ClientCommand {
           os.flush();
           os.close();
       }
-      
     } finally {
       if (storm != null) {
         storm.stop();

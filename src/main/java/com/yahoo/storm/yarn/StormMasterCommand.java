@@ -168,9 +168,9 @@ class StormMasterCommand implements ClientCommand {
         try { 
             conf_str = client.getStormConf();                  
         } catch (TTransportException ex) {
-            LOG.warn("Exception in downloading storm.yaml:"+ex.toString());
-        } catch (TException e) {
-            LOG.warn("Exception in downloading storm.yaml:"+e.toString());
+            LOG.error("Exception in downloading storm.yaml", ex);
+        } catch (TException ex) {
+            LOG.error("Exception in downloading storm.yaml", ex);
         }
 
         //storm the fetched storm.yaml into storm_yaml_output or stdout 

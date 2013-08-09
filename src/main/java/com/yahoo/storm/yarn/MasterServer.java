@@ -93,7 +93,7 @@ public class MasterServer extends ThriftServer {
                   allocResponse.getAMResponse().getCompletedContainersStatuses();              
               if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
                 LOG.info("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
-                client.stopAllSupervisors();
+                client.startAllSupervisors();
               }
             }
           } catch (Throwable t) {
