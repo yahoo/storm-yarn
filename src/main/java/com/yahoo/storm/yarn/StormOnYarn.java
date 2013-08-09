@@ -16,16 +16,24 @@
 
 package com.yahoo.storm.yarn;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.lang.ProcessBuilder.Redirect;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.mapreduce.security.TokenCache;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
@@ -47,6 +55,8 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import backtype.storm.utils.Utils;
 
 import com.yahoo.storm.yarn.client.Constants;
 import com.yahoo.storm.yarn.generated.StormMaster;
@@ -89,23 +99,37 @@ public class StormOnYarn {
     @SuppressWarnings("unchecked")
     public synchronized StormMaster.Client getClient() throws YarnRemoteException {
         if (_client == null) {
-            //TODO need a way to force this to reconnect in case of an error
-            ApplicationReport report = _yarn.getApplicationReport(_appId);
-            LOG.info("application report for "+_appId+" :"+report.getHost()+":"+report.getRpcPort());
-            String host = report.getHost();
-            if (host == null) {
-              throw new RuntimeException(
-                  "No host returned for Application Master " + _appId);
+            String host = null;
+            int port = 0;
+            //wait for application to be ready
+            int max_wait_for_report = Utils.getInt(_stormConf.get(Config.YARN_REPORT_WAIT_MILLIS));
+            int waited=0; 
+            while (waited<max_wait_for_report) {
+                ApplicationReport report = _yarn.getApplicationReport(_appId);
+                host = report.getHost();
+                port = report.getRpcPort();
+                if (host == null || port==0) { 
+                    try {
+                        Thread.sleep(1000);
+                    } catch (InterruptedException e) {
+                    }
+                    waited += 1000;
+                } else {
+                    break;
+                }
             }
+            if (host == null || port==0) {
+              LOG.info("No host/port returned for Application Master " + _appId);
+              return null;
+            }
+            
+            LOG.info("application report for "+_appId+" :"+host+":"+port);
             if (_stormConf == null ) {
               _stormConf = new HashMap<Object,Object>();
             }
             _stormConf.put(Config.MASTER_HOST, host);
-            int port = report.getRpcPort();
             _stormConf.put(Config.MASTER_THRIFT_PORT, port);
             LOG.info("Attaching to "+host+":"+port+" to talk to app master "+_appId);
-            //TODO need a better work around to the config not being set.
-            _stormConf.put(Config.MASTER_TIMEOUT_SECS, 10);
             _client = MasterClient.getConfiguredClient(_stormConf);
         }
         return _client.getClient();
@@ -130,12 +154,12 @@ public class StormOnYarn {
         // Set up the container launch context for the application master
         ContainerLaunchContext amContainer = Records
                 .newRecord(ContainerLaunchContext.class);
-        Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
 
         // set local resources for the application master
         // local files or archives as needed
         // In this scenario, the jar file for the application master is part of the
         // local resources
+        Map<String, LocalResource> localResources = new HashMap<String, LocalResource>();
         LOG.info("Copy App Master jar from local filesystem and add to local environment");
         // Copy the application master jar to the filesystem
         // Create a local resource to point to the destination jar path
@@ -152,16 +176,35 @@ public class StormOnYarn {
         Path zip;
         if (storm_zip_location != null) {
             zip = new Path(storm_zip_location);
+            _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
+            _stormConf.put("storm.zip.visibility", "APPLICATION");
+            localResources.put("storm", Util.newYarnAppResource(fs, zip,
+                    LocalResourceType.ARCHIVE, LocalResourceVisibility.APPLICATION));
         } else {
             zip = new Path("/lib/storm/"+stormVersion+"/storm.zip");         
+            _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
+            _stormConf.put("storm.zip.visibility", "PUBLIC");
+            localResources.put("storm", Util.newYarnAppResource(fs, zip,
+                    LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
         }
-        _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
-        localResources.put("storm", Util.newYarnAppResource(fs, zip,
-                LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
         
-        Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf, _hadoopConf);
+        Path confDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf, _hadoopConf);
         // establish a symbolic link to conf directory
-        localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
+        localResources.put("conf", Util.newYarnAppResource(fs, confDst));
+
+        // Setup security tokens
+        Path[] paths = new Path[3];
+        paths[0] = dst;
+        paths[1] = zip;
+        paths[2] = confDst;
+        Credentials credentials = new Credentials();
+        TokenCache.obtainTokensForNamenodes(credentials, paths, _hadoopConf);
+        DataOutputBuffer dob = new DataOutputBuffer();
+        credentials.writeTokenStorageToStream(dob);
+        ByteBuffer securityTokens  = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+        
+        //security tokens for HDFS distributed cache
+        amContainer.setContainerTokens(securityTokens);
 
         // Set local resource info into app master container launch context
         amContainer.setLocalResources(localResources);
@@ -170,69 +213,58 @@ public class StormOnYarn {
         // will be run
         LOG.info("Set the environment for the application master");
         Map<String, String> env = new HashMap<String, String>();
+        
         // add the runtime classpath needed for tests to work
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
         //TODO need a better way to get the storm .zip created and put where it needs to go.
 
-        String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
- 
-        for (String c : _hadoopConf.getStrings(
-                YarnConfiguration.YARN_APPLICATION_CLASSPATH,
+        for (String c : _hadoopConf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,
                 Constants.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
             Apps.addToEnvironment(env, Environment.CLASSPATH.name(), c.trim());
         }
         
-        //For tests purpose, add maven generated classpath     
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.commons.configuration.Configuration")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.commons.cli.Options")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.net.NetUtils")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.conf.Configuration")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.security.authentication.client.AuthenticationException")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.YarnException")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.api.ApplicationConstants")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.api.records.ApplicationAttemptId")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.conf.YarnConfiguration")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.service.Service")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.util.ConverterUtils")));
-        //Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("org.apache.hadoop.yarn.client.AMRMClientImpl")));
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), findContainingJar(Class.forName("com.google.protobuf.MessageOrBuilder")));
-        
+        //Make sure that AppMaster has access to all YARN JARs     
+        List<String> yarn_classpath_cmd = java.util.Arrays.asList("yarn", "classpath");
+        ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd).redirectError(Redirect.INHERIT);
+        pb.environment().putAll(System.getenv());
+        Process proc = pb.start();
+        BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream(), "UTF-8"));
+        String line = "";
+        StringBuilder yarn_class_path = new StringBuilder();
+        while ((line = reader.readLine() ) != null)
+            yarn_class_path.append(line); 
+        proc.waitFor();
+        reader.close();
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path.toString());
+
+        //storm classpath
+        String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
+
+        String java_home = System.getenv("JAVA_HOME");
+        if (java_home!=null && !java_home.isEmpty())
+            env.put("JAVA_HOME", java_home);
         env.put("appJar", appMasterJar);
         env.put("appName", appName);
         env.put("appId", new Integer(_appId.getId()).toString());
+        env.put("STORM_LOG_DIR", ApplicationConstants.LOG_DIR_EXPANSION_VAR);
         amContainer.setEnvironment(env);
 
         // Set the necessary command to execute the application master
         Vector<String> vargs = new Vector<String>();
-
-        // TODO need a better way to do debugging
-        vargs.add("find");
-        vargs.add(".");
-        vargs.add("-follow");
-        vargs.add("|");
-        vargs.add("xargs");
-        vargs.add("ls");
-        vargs.add("-ld");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/files");
-        vargs.add("&&");
-        vargs.add("echo");
-        vargs.add("$CLASSPATH");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/classpath");
-        vargs.add("&&");
-        vargs.add("echo");
-        vargs.add("$PWD");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/pwd");
-        vargs.add("&&");
-        vargs.add("java");
+        
+        if (java_home!=null && !java_home.isEmpty())
+            vargs.add(System.getenv("JAVA_HOME")+"/bin/java");
+        else 
+            vargs.add("java");
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
+        vargs.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/master.log");
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
-        vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+        vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
         // Set java executable command
         LOG.info("Setting up app master command:"+vargs);
 
