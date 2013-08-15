@@ -25,8 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.yahoo.storm.yarn.Client.ClientCommand;
+import com.yahoo.storm.yarn.generated.StormMaster;
 
-public class LaunchCommand implements ClientCommand {
+class LaunchCommand implements ClientCommand {
   private static final Logger LOG = LoggerFactory.getLogger(LaunchCommand.class);
 
   @Override
@@ -36,6 +37,7 @@ public class LaunchCommand implements ClientCommand {
     opts.addOption("queue", true, "RM Queue in which this application is to be submitted");
     opts.addOption("stormHome", true, "Storm Home Directory");
     opts.addOption("output", true, "Output file");
+    opts.addOption("stormConfOutput", true, "storm.yaml file");
     opts.addOption("stormZip", true, "file path of storm.zip");
     return opts;
   }
@@ -44,18 +46,30 @@ public class LaunchCommand implements ClientCommand {
   public void process(CommandLine cl, @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
     String appName = cl.getOptionValue("appname", "Storm-on-Yarn");
     String queue = cl.getOptionValue("queue", "default");
-    
-    String storm_zip_location = cl.getOptionValue("stormZip");    
+
+    String storm_zip_location = cl.getOptionValue("stormZip");
     Integer amSize = (Integer) stormConf.get(Config.MASTER_SIZE_MB);
-    
+
     StormOnYarn storm = null;
     try {
-      storm = StormOnYarn.launchApplication(appName, 
-                  queue, amSize, 
-                  stormConf, 
+      storm = StormOnYarn.launchApplication(appName,
+                  queue, amSize,
+                  stormConf,
                   storm_zip_location);
       LOG.debug("Submitted application's ID:" + storm.getAppId());
 
+      //download storm.yaml file
+      String storm_yaml_output = cl.getOptionValue("stormConfOutput");
+      if (storm_yaml_output != null && storm_yaml_output.length() > 0) {
+        //try to download storm.yaml
+        StormMaster.Client client = storm.getClient();
+        if (client != null)
+          StormMasterCommand.downloadStormYaml(client, storm_yaml_output);
+        else
+          LOG.warn("No storm.yaml is downloaded");
+      }
+
+      //store appID to output
       String output = cl.getOptionValue("output");
       if (output == null)
           System.out.println(storm.getAppId());
