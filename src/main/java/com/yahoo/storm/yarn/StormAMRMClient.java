@@ -143,10 +143,18 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
         String storm_zip_path = (String) storm_conf.get("storm.zip.path");
         Path zip = new Path(storm_zip_path);
         FileSystem fs = FileSystem.get(hadoopConf);
-        localResources.put("storm", Util.newYarnAppResource(fs, zip,
-                LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
+        String vis = (String) storm_conf.get("storm.zip.visibility");
+        if (vis.equals("PUBLIC"))
+          localResources.put("storm", Util.newYarnAppResource(fs, zip,
+                  LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
+        else if (vis.equals("PRIVATE"))
+          localResources.put("storm", Util.newYarnAppResource(fs, zip,
+                  LocalResourceType.ARCHIVE, LocalResourceVisibility.PRIVATE));
+        else if (vis.equals("APPLICATION"))
+          localResources.put("storm", Util.newYarnAppResource(fs, zip,
+                  LocalResourceType.ARCHIVE, LocalResourceVisibility.APPLICATION));
 
-        String appHome = Util.getApplicationHomeForId(appAttemptId.toString());
+      String appHome = Util.getApplicationHomeForId(appAttemptId.toString());
         Path dirDst = Util.createConfigurationFileInFs(fs, appHome,
                 this.storm_conf, this.hadoopConf);
 

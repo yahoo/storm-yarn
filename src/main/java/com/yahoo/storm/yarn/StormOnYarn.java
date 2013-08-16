@@ -167,10 +167,15 @@ public class StormOnYarn {
             zip = new Path("/lib/storm/" + stormVersion + "/storm.zip");
         }
         _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
-        localResources.put("storm", Util.newYarnAppResource(fs, zip,
-                LocalResourceType.ARCHIVE, LocalResourceVisibility.PUBLIC));
+        LocalResourceVisibility visibility = LocalResourceVisibility.PUBLIC;
+        _stormConf.put("storm.zip.visibility", "PUBLIC");
+        if (!Util.isPublic(fs, zip)) {
+          visibility = LocalResourceVisibility.APPLICATION;
+          _stormConf.put("storm.zip.visibility", "APPLICATION");
+        }
+        localResources.put("storm", Util.newYarnAppResource(fs, zip, LocalResourceType.ARCHIVE, visibility));
 
-        Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf,
+      Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf,
                 _hadoopConf);
         // establish a symbolic link to conf directory
         localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
