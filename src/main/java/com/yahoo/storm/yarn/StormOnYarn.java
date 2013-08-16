@@ -181,8 +181,11 @@ public class StormOnYarn {
         }
         _stormConf.put("storm.zip.path", zip.makeQualified(fs).toUri().getPath());
         LocalResourceVisibility visibility = LocalResourceVisibility.PUBLIC;
-        if (!Util.isPublic(fs, zip))
-            visibility = LocalResourceVisibility.APPLICATION;
+        _stormConf.put("storm.zip.visibility", "PUBLIC");
+        if (!Util.isPublic(fs, zip)) {
+          visibility = LocalResourceVisibility.APPLICATION;
+          _stormConf.put("storm.zip.visibility", "APPLICATION");
+        }
         localResources.put("storm", Util.newYarnAppResource(fs, zip, LocalResourceType.ARCHIVE, visibility));
         
         Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf, _hadoopConf);
