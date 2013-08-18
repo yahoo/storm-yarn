@@ -16,10 +16,13 @@
 
 package com.yahoo.storm.yarn;
 
-import java.net.URI;
+import java.net.URL;
 
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
 
@@ -31,15 +34,16 @@ import java.nio.file.Files;
 import java.nio.file.PathMatcher;
 import java.nio.file.SimpleFileVisitor;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarEntry;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
-import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -47,6 +51,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
@@ -54,14 +59,15 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.yaml.snakeyaml.Yaml;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Joiner;
 
 class Util {
+  private static final Logger LOG = LoggerFactory.getLogger(LaunchCommand.class);
+  private static final String STORM_CONF_PATH_STRING = "conf" + Path.SEPARATOR + "storm.yaml";
 
-  private static final String STORM_CONF_PATH_STRING = 
-      "conf" + Path.SEPARATOR + "storm.yaml";
-    
   static String getStormHome() {
       String ret = System.getProperty("storm.home");
       if (ret == null) {
@@ -150,8 +156,14 @@ class Util {
     writer = new OutputStreamWriter(out);
     yarnConf.writeXml(writer);
     writer.close();
-    out.close();   
-    
+    out.close();
+
+    //logback.xml
+    Path logback_xml = new Path(dirDst, "logback.xml");
+    out = fs.create(logback_xml);
+    CreateLogbackXML(out);
+    out.close();
+
     return dirDst;
   } 
 
@@ -161,18 +173,58 @@ class Util {
         LocalResourceVisibility.APPLICATION);
   }
 
+  private static void CreateLogbackXML(OutputStream out) throws IOException {
+    Enumeration<URL> logback_xml_urls;
+    logback_xml_urls = Thread.currentThread().getContextClassLoader().getResources("logback.xml");
+    while (logback_xml_urls.hasMoreElements()) {
+      URL logback_xml_url = logback_xml_urls.nextElement();
+      if (logback_xml_url.getProtocol().equals("file")) {
+        //Case 1: logback.xml as simple file
+        FileInputStream is = new FileInputStream(logback_xml_url.getPath());
+        while (is.available() > 0) {
+          out.write(is.read());
+        }
+        is.close();
+        return;
+      }
+      if (logback_xml_url.getProtocol().equals("jar")) {
+        //Case 2: logback.xml included in a JAR
+        String path = logback_xml_url.getPath();
+        String jarFile = path.substring("file:".length(), path.indexOf("!"));
+        java.util.jar.JarFile jar = new java.util.jar.JarFile(jarFile);
+        Enumeration<JarEntry> enums = jar.entries();
+        while (enums.hasMoreElements()) {
+          java.util.jar.JarEntry file = enums.nextElement();
+          if (!file.isDirectory() && file.getName().equals("logback.xml")) {
+            InputStream is = jar.getInputStream(file); // get the input stream
+            while (is.available() > 0) {
+              out.write(is.read());
+            }
+            is.close();
+            jar.close();
+            return;
+          }
+        }
+        jar.close();
+      }
+    }
+
+    throw new IOException("Failed to locate a logback.xml");
+  }
+
   @SuppressWarnings("rawtypes")
   private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
           throws IOException {
       String stormHomePath = getStormHome();
       List<String> toRet = new ArrayList<String>();
-      toRet.add("java");
+      if (System.getenv("JAVA_HOME") != null)
+        toRet.add(System.getenv("JAVA_HOME") + "/bin/java");
+      else
+        toRet.add("java");
       toRet.add("-server");
       toRet.add("-Dstorm.home=" + stormHomePath);
-      toRet.add("-Djava.library.path="
-              + conf.get(backtype.storm.Config.JAVA_LIBRARY_PATH));
-      toRet.add("-Dstorm.conf.file=" + new
-              File(STORM_CONF_PATH_STRING).getName());
+      toRet.add("-Djava.library.path=" + conf.get(backtype.storm.Config.JAVA_LIBRARY_PATH));
+      toRet.add("-Dstorm.conf.file=" + new File(STORM_CONF_PATH_STRING).getName());
       toRet.add("-cp");
       toRet.add(buildClassPathArgument());
 
@@ -180,10 +232,6 @@ class Util {
               && conf.get(childOptsKey) != null) {
           toRet.add((String) conf.get(childOptsKey));
       }
-
-      toRet.add("-Dlogback.configurationFile=" + FileSystems.getDefault()
-              .getPath(stormHomePath, "logback", "cluster.xml")
-              .toString());
 
       return toRet;
   }
@@ -193,7 +241,8 @@ class Util {
       List<String> toRet =
               buildCommandPrefix(conf, backtype.storm.Config.UI_CHILDOPTS);
 
-      toRet.add("-Dlogfile.name=ui.log");
+      toRet.add("-Dstorm.options=" + backtype.storm.Config.NIMBUS_HOST + "=localhost");
+      toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/ui.log");
       toRet.add("backtype.storm.ui.core");
 
       return toRet;
@@ -204,7 +253,7 @@ class Util {
       List<String> toRet =
               buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
 
-      toRet.add("-Dlogfile.name=nimbus.log");
+      toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/nimbus.log");
       toRet.add("backtype.storm.daemon.nimbus");
 
       return toRet;
@@ -215,7 +264,8 @@ class Util {
       List<String> toRet =
               buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
 
-      toRet.add("-Dlogfile.name=supervisor.log");
+      toRet.add("-Dworker.logdir="+ ApplicationConstants.LOG_DIR_EXPANSION_VAR);
+      toRet.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/supervisor.log");
       toRet.add("backtype.storm.daemon.supervisor");
 
       return toRet;
@@ -225,8 +275,7 @@ class Util {
       List<String> paths = new ArrayList<String>();
       paths.add(new File(STORM_CONF_PATH_STRING).getParent());
       paths.add(getStormHome());
-      for (String jarPath : findAllJarsInPaths(getStormHome(),
-              getStormHome() + File.separator + "lib")) {
+      for (String jarPath : findAllJarsInPaths(getStormHome(), getStormHome() + File.separator + "lib")) {
           paths.add(jarPath);
       }
       return Joiner.on(File.pathSeparatorChar).join(paths);

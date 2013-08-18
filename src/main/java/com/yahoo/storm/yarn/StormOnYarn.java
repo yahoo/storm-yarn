@@ -203,13 +203,7 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
 
-        for (String c : _hadoopConf.getStrings(
-                YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-                YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
-            Apps.addToEnvironment(env, Environment.CLASSPATH.name(), c.trim());
-        }
-        
-        //Make sure that AppMaster has access to all YARN JARs     
+        //Make sure that AppMaster has access to all YARN JARs
         List<String> yarn_classpath_cmd = java.util.Arrays.asList("yarn", "classpath");
         ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd).redirectError(Redirect.INHERIT);
         pb.environment().putAll(System.getenv());
@@ -226,20 +220,28 @@ public class StormOnYarn {
         String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
- 
+
+        String java_home = System.getenv("JAVA_HOME");
+        if (java_home != null && !java_home.isEmpty())
+          env.put("JAVA_HOME", java_home);
         env.put("appJar", appMasterJar);
         env.put("appName", appName);
         env.put("appId", new Integer(_appId.getId()).toString());
+        env.put("STORM_LOG_DIR", ApplicationConstants.LOG_DIR_EXPANSION_VAR);
         amContainer.setEnvironment(env);
 
         // Set the necessary command to execute the application master
         Vector<String> vargs = new Vector<String>();
-        vargs.add("java");
+        if (java_home != null && !java_home.isEmpty())
+          vargs.add(System.getenv("JAVA_HOME") + "/bin/java");
+        else
+          vargs.add("java");
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
+        vargs.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/master.log");
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
-        vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+        vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
         // Set java executable command
         LOG.info("Setting up app master command:"+vargs);
 
