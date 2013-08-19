@@ -48,7 +48,7 @@
             <id>apache.snapshots</id>
             <url>http://repository.apache.org/content/repositories/snapshots/</url>
         </repository>
-        
+
         <!-- Special: following this instruction alternative 3
         http://slf4j.org/faq.html#excludingJCL -->
         <repository>
@@ -106,11 +106,19 @@
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-common</artifactId>
             <version>${hadoop.version}</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-core</artifactId>
+            <version>${hadoop.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-yarn-client</artifactId>
             <version>${hadoop.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

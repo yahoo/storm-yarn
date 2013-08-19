@@ -17,6 +17,8 @@
 package com.yahoo.storm.yarn;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.security.PrivilegedAction;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -26,11 +28,14 @@ import java.util.TreeSet;
 import java.net.InetSocketAddress;
 
 import org.apache.hadoop.net.NetUtils;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 
 import org.apache.hadoop.yarn.ipc.YarnRPC;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ContainerManager;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerRequest;
 import org.apache.hadoop.yarn.api.protocolrecords.StartContainerResponse;
@@ -41,10 +46,12 @@ import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
 import org.apache.hadoop.yarn.api.records.LocalResource;
 import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
+import org.apache.hadoop.yarn.api.records.NodeId;
 import org.apache.hadoop.yarn.api.records.Priority;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.client.AMRMClientImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.util.ProtoUtils;
 import org.apache.hadoop.yarn.util.Records;
 
 import org.slf4j.Logger;
@@ -78,7 +85,7 @@ class StormAMRMClient extends AMRMClientImpl {
   }
 
   private ContainerRequest setupContainerAskForRM(int numContainers) {
-    LOG.info("Creating new ContainerRequest with "+this.maxResourceCapability+" and "+numContainers);
+    LOG.info("Creating new ContainerRequest with " + this.maxResourceCapability + " and " + numContainers);
     ContainerRequest request =
         new ContainerRequest(this.maxResourceCapability, null, null,
             DEFAULT_PRIORITY, numContainers);
@@ -133,31 +140,61 @@ class StormAMRMClient extends AMRMClientImpl {
     }
   }
 
+  protected ContainerManager getCMProxy(Container container, ContainerId containerID) throws IOException {
+    NodeId nodeId = container.getNodeId();
+    String cmIpPortStr = nodeId.getHost() + ":" + nodeId.getPort();
+    final InetSocketAddress cmAddr = NetUtils.createSocketAddr(cmIpPortStr);
+
+    UserGroupInformation user;
+    if (UserGroupInformation.isSecurityEnabled()) {
+      LOG.info("Connecting to ContainerManager via UGI with security mode");
+      // the user in createRemoteUser in this context has to be ContainerID
+      user = UserGroupInformation.createRemoteUser(containerID.toString());
+      user.addToken(ProtoUtils.convertFromProtoFormat(container.getContainerToken(), cmAddr));
+    } else {
+      LOG.info("Connecting to ContainerManager ...");
+      user = UserGroupInformation.getCurrentUser();
+    }
+
+    ContainerManager proxy = user.doAs(new PrivilegedAction<ContainerManager>() {
+      @Override
+      public ContainerManager run() {
+        return (ContainerManager) rpc.getProxy(ContainerManager.class,
+                cmAddr, hadoopConf);
+      }
+    });
+    return proxy;
+  }
+
   public void launchSupervisorOnContainer(Container container)
       throws IOException {
-    LOG.info("Connecting to ContainerManager for containerid=" + container.getId());
-    String cmIpPortStr = container.getNodeId().getHost() + ":"
-          + container.getNodeId().getPort();
-    InetSocketAddress cmAddress = NetUtils.createSocketAddr(cmIpPortStr);
-    LOG.info("Connecting to ContainerManager at " + cmIpPortStr);
-    ContainerManager proxy = ((ContainerManager) rpc.getProxy(ContainerManager.class, cmAddress, hadoopConf));
+    ContainerId containerID = container.getId();
+    LOG.info("launchSupervisorOnContainer() for containerid=" + containerID);
+    ContainerManager proxy = getCMProxy(container, containerID);
 
+    ContainerLaunchContext launchContext = Records.newRecord(ContainerLaunchContext.class);
 
-    LOG.info("launchSupervisorOnContainer( id:" + container.getId() + " )");
-    ContainerLaunchContext launchContext = Records
-        .newRecord(ContainerLaunchContext.class);
-
-    launchContext.setContainerId(container.getId()); 
+    launchContext.setContainerId(containerID);
     launchContext.setResource(container.getResource());
 
+    String userShortName = null;
     try {
-      launchContext.setUser(UserGroupInformation.getCurrentUser().getShortUserName());
+      UserGroupInformation user = UserGroupInformation.getCurrentUser();
+      userShortName = user.getShortUserName();
+      launchContext.setUser(userShortName);
+
+      Credentials credentials = user.getCredentials();
+      DataOutputBuffer dob = new DataOutputBuffer();
+      credentials.writeTokenStorageToStream(dob);
+      ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+      launchContext.setContainerTokens(securityTokens);
     } catch (IOException e) {
-      LOG.info("Getting current user info failed when trying to launch the container"
-          + e.getMessage());
+      LOG.warn("Getting current user info failed when trying to launch the container"
+              + e.getMessage());
     }
- 
+
     Map<String, String> env = new HashMap<String, String>();
+    env.put("STORM_LOG_DIR", ApplicationConstants.LOG_DIR_EXPANSION_VAR);
     launchContext.setEnvironment(env);
 
 
@@ -199,7 +236,9 @@ class StormAMRMClient extends AMRMClientImpl {
     LOG.info("launchSupervisorOnContainer: startRequest prepared, calling startContainer. "+startRequest);
     try {
       StartContainerResponse response = proxy.startContainer(startRequest);
-      LOG.info("Got a start container response "+response);
+      if (userShortName != null)
+        LOG.info("Supervisor log: http://" + container.getNodeHttpAddress() + "/node/containerlogs/"
+                + containerID.toString() + "/" + userShortName + "/supervisor.log");
     } catch (Exception e) {
        LOG.error("Caught an exception while trying to start a container", e);
        System.exit(-1);
