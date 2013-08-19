@@ -220,12 +220,7 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
 
-        for (String c : _hadoopConf.getStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-                Constants.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
-            Apps.addToEnvironment(env, Environment.CLASSPATH.name(), c.trim());
-        }
-        
-        //Make sure that AppMaster has access to all YARN JARs     
+        //Make sure that AppMaster has access to all YARN JARs
         List<String> yarn_classpath_cmd = java.util.Arrays.asList("yarn", "classpath");
         ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd).redirectError(Redirect.INHERIT);
         pb.environment().putAll(System.getenv());
