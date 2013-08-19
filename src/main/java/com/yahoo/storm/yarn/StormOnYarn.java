@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +32,9 @@ import java.util.Vector;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.mapreduce.security.TokenCache;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
@@ -175,10 +179,24 @@ public class StormOnYarn {
         }
         localResources.put("storm", Util.newYarnAppResource(fs, zip, LocalResourceType.ARCHIVE, visibility));
 
-      Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf,
+        Path confDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf,
                 _hadoopConf);
         // establish a symbolic link to conf directory
-        localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
+        localResources.put("conf", Util.newYarnAppResource(fs, confDst));
+
+        // Setup security tokens
+        Path[] paths = new Path[3];
+        paths[0] = dst;
+        paths[1] = zip;
+        paths[2] = confDst;
+        Credentials credentials = new Credentials();
+        TokenCache.obtainTokensForNamenodes(credentials, paths, _hadoopConf);
+        DataOutputBuffer dob = new DataOutputBuffer();
+        credentials.writeTokenStorageToStream(dob);
+        ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+
+        //security tokens for HDFS distributed cache
+        amContainer.setTokens(securityTokens);
 
         // Set local resource info into app master container launch context
         amContainer.setLocalResources(localResources);
@@ -261,7 +279,7 @@ public class StormOnYarn {
      * Wait until the application is successfully launched
      * 
      * @throws IOException
-     * @throws YarnRemoteException
+     * @throws YarnException
      */
     public boolean waitUntilLaunched() throws YarnException, IOException {
         while (true) {

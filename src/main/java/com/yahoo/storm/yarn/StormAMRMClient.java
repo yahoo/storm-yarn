@@ -26,6 +26,7 @@ import java.util.TreeSet;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -136,6 +137,7 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
 
         // CLC: env
         Map<String, String> env = new HashMap<String, String>();
+        env.put("STORM_LOG_DIR", ApplicationConstants.LOG_DIR_EXPANSION_VAR);
         launchContext.setEnvironment(env);
 
         // CLC: local resources includes storm, conf
@@ -154,11 +156,11 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
           localResources.put("storm", Util.newYarnAppResource(fs, zip,
                   LocalResourceType.ARCHIVE, LocalResourceVisibility.APPLICATION));
 
-      String appHome = Util.getApplicationHomeForId(appAttemptId.toString());
-        Path dirDst = Util.createConfigurationFileInFs(fs, appHome,
+        String appHome = Util.getApplicationHomeForId(appAttemptId.toString());
+        Path confDst = Util.createConfigurationFileInFs(fs, appHome,
                 this.storm_conf, this.hadoopConf);
+        localResources.put("conf", Util.newYarnAppResource(fs, confDst));
 
-        localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
         launchContext.setLocalResources(localResources);
 
         // CLC: command
