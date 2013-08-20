@@ -88,12 +88,12 @@ public class TestConfig {
                     FileOutputStream fos = null;
                     String opFilePath = "lib/"+zEntry.getName();
                     if (zEntry.isDirectory()) { 
-                        LOG.debug("Create a folder "+opFilePath);
+                        LOG.info("Create a folder "+opFilePath);
                         if (zEntry.getName().indexOf(Path.SEPARATOR)==(zEntry.getName().length()-1))
                             storm_home = opFilePath.substring(0, opFilePath.length()-1);
                         new File(opFilePath).mkdir();
                     } else {
-                        LOG.debug("Extracting file to "+opFilePath);
+                        LOG.info("Extracting file to "+opFilePath);
                         fos = new FileOutputStream(opFilePath);
                         int size = 0;
                         while((size = zipIs.read(tmp)) != -1){
@@ -103,7 +103,7 @@ public class TestConfig {
                         fos.close();
                     }
                 } catch(Exception ex){
-
+                   ex.printStackTrace();
                 }
             }
             zipIs.close();

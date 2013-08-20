@@ -19,11 +19,13 @@ package com.yahoo.storm.yarn;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.lang.ProcessBuilder.Redirect;
+import java.io.InputStream;
+import java.io.PrintStream;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 import org.apache.thrift7.TException;
 import org.json.simple.JSONValue;
@@ -133,10 +135,11 @@ public class StormMasterServerHandler implements StormMaster.Iface {
                 LOG.info("Running: " + Joiner.on(" ").join(buildCommands()));
                 ProcessBuilder builder =
                         new ProcessBuilder(buildCommands());
-                builder.redirectError(Redirect.INHERIT);
-                builder.redirectOutput(Redirect.INHERIT);
-
+                
                 _process = builder.start();
+                Util.redirectStreamAsync(_process.getInputStream(), System.out);
+                Util.redirectStreamAsync(_process.getErrorStream(), System.err);
+                
             } catch (IOException e) {
                 LOG.warn("Error starting nimbus process ", e);
             }
