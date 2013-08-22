@@ -22,19 +22,17 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.PrintStream;
 
 import java.io.OutputStreamWriter;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.PathMatcher;
-import java.nio.file.SimpleFileVisitor;
+
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -162,11 +160,10 @@ class Util {
   }
 
   @SuppressWarnings("rawtypes")
-  private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
+  private static List<String> getCommonJavaParameters(Map conf, String childOptsKey) 
           throws IOException {
       String stormHomePath = getStormHome();
       List<String> toRet = new ArrayList<String>();
-      toRet.add("java");
       toRet.add("-server");
       toRet.add("-Dstorm.home=" + stormHomePath);
       toRet.add("-Djava.library.path="
@@ -181,17 +178,20 @@ class Util {
           toRet.add((String) conf.get(childOptsKey));
       }
 
-      toRet.add("-Dlogback.configurationFile=" + FileSystems.getDefault()
-              .getPath(stormHomePath, "logback", "cluster.xml")
-              .toString());
+      File stormPath = new File(stormHomePath);
+      File logBackDir = new File(stormPath, "logback");
+      File logBackConfig = new File(logBackDir, "cluster.xml");     
+      
+      toRet.add("-Dlogback.configurationFile=" + logBackConfig.toString());
 
       return toRet;
   }
 
   @SuppressWarnings("rawtypes")
   static List<String> buildUICommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.UI_CHILDOPTS);
+      List<String> toRet = getCommonJavaParameters(conf, backtype.storm.Config.UI_CHILDOPTS);
+      File jvm = new File(new File(System.getProperty("java.home"), "bin"), "java");
+      toRet.add(0, jvm.toString());
 
       toRet.add("-Dlogfile.name=ui.log");
       toRet.add("backtype.storm.ui.core");
@@ -201,9 +201,10 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static List<String> buildNimbusCommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
-
+      List<String> toRet = getCommonJavaParameters(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+      File jvm = new File(new File(System.getProperty("java.home"), "bin"), "java");
+      toRet.add(0, jvm.toString());
+      
       toRet.add("-Dlogfile.name=nimbus.log");
       toRet.add("backtype.storm.daemon.nimbus");
 
@@ -212,61 +213,79 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static List<String> buildSupervisorCommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
-
+      List<String> toRet = getCommonJavaParameters(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+      toRet.add(0, "$JAVA_HOME/bin/java");
+      
       toRet.add("-Dlogfile.name=supervisor.log");
       toRet.add("backtype.storm.daemon.supervisor");
+      toRet.add(0, "cat `basename $0` >> /var/log/hadoop-yarn/containers/container.log; ");
+      toRet.add("2>&1 | tee -a /var/log/hadoop-yarn/containers/container.log; test ${PIPESTATUS[0]} -eq 0");
 
       return toRet;
   }
 
-  private static String buildClassPathArgument() throws IOException {
-      List<String> paths = new ArrayList<String>();
-      paths.add(new File(STORM_CONF_PATH_STRING).getParent());
-      paths.add(getStormHome());
-      for (String jarPath : findAllJarsInPaths(getStormHome(),
-              getStormHome() + File.separator + "lib")) {
-          paths.add(jarPath);
-      }
-      return Joiner.on(File.pathSeparatorChar).join(paths);
-  }
+    private static String buildClassPathArgument() throws IOException {
+        List<String> paths = new ArrayList<String>();
+        paths.add(new File(STORM_CONF_PATH_STRING).getParent());
+        paths.add(getStormHome());
+        for (String jarPath : findAllJarsInPaths(getStormHome(),
+                getStormHome() + File.separator + "lib")) {
+            paths.add(jarPath);
+        }
+        return Joiner.on(File.pathSeparatorChar).join(paths);
+    }
 
-  private static List<String> findAllJarsInPaths(String... pathStrs)
-          throws IOException {
-      java.nio.file.FileSystem fs = FileSystems.getDefault();
-      final PathMatcher matcher = fs.getPathMatcher("glob:**.jar");
-      final LinkedHashSet<String> pathSet = new LinkedHashSet<String>();
-      for (String pathStr : pathStrs) {
-          java.nio.file.Path start = fs.getPath(pathStr);
-          Files.walkFileTree(start, new SimpleFileVisitor<java.nio.file.Path>() {
-              @Override
-              public FileVisitResult visitFile(java.nio.file.Path path,
-                      BasicFileAttributes attrs) throws IOException {
-                  if (attrs.isRegularFile() && matcher.matches(path)
-                          && !pathSet.contains(path)) {
-                      java.nio.file.Path parent = path.getParent();
-                      pathSet.add(parent + File.separator + "*");
-                      return FileVisitResult.SKIP_SIBLINGS;
-                  }
-                  return FileVisitResult.CONTINUE;
-              }
-          });
-      }
-      final List<String> toRet = new ArrayList<String>();
-      for (String p : pathSet) {
-          toRet.add(p);
-      }
-      return toRet;
-  }
+    private static interface FileVisitor {
+        public void visit(File file);
+    }
+  
+    private static List<String> findAllJarsInPaths(String... pathStrs) {
+        final LinkedHashSet<String> pathSet = new LinkedHashSet<String>();
 
-  static String getApplicationHomeForId(String id) {
-      if (id.isEmpty()) {
-          throw new IllegalArgumentException(
-                  "The ID of the application cannot be empty.");
-      }
-      return ".storm" + Path.SEPARATOR + id;
-  }
+        FileVisitor visitor = new FileVisitor() {
+
+            @Override
+            public void visit(File file) {
+                String name = file.getName();
+                if (name.endsWith(".jar")) {
+                    pathSet.add(file.getPath());
+                }
+            }
+        };
+
+        for (String path : pathStrs) {
+            File file = new File(path);
+            traverse(file, visitor);
+        }
+
+        final List<String> toRet = new ArrayList<String>();
+        for (String p : pathSet) {
+            toRet.add(p);
+        }
+        return toRet;
+    }
+
+    private static void traverse(File file, FileVisitor visitor) {
+        if (file.isDirectory()) {
+            File childs[] = file.listFiles();
+            if (childs.length > 0) {
+                for (int i = 0; i < childs.length; i++) {
+                    File child = childs[i];
+                    traverse(child, visitor);
+                }
+            }
+        } else {
+            visitor.visit(file);
+        }
+    }
+
+    static String getApplicationHomeForId(String id) {
+        if (id.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "The ID of the application cannot be empty.");
+        }
+        return ".storm" + Path.SEPARATOR + id;
+    }
 
     /**
      * Returns a boolean to denote whether a cache file is visible to all(public)
@@ -320,4 +339,16 @@ class Util {
         }
         return true;
     }
+    
+    static void redirectStreamAsync(final InputStream input, final PrintStream output) {
+      new Thread(new Runnable() {        
+          @Override
+          public void run() {
+              Scanner scanner = new Scanner(input);
+              while (scanner.hasNextLine()) {
+                  output.println(scanner.nextLine());
+              }
+          }
+      }).start();
+  }
 }
