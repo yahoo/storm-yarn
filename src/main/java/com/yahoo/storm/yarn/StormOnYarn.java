@@ -237,7 +237,7 @@ public class StormOnYarn {
 
         // Set the necessary command to execute the application master
         Vector<String> vargs = new Vector<String>();
-        vargs.add("java");
+        vargs.add("$JAVA_HOME/bin/java");
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
