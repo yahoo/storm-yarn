@@ -224,6 +224,9 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path.toString());
         
         String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
+        
+        LOG.info("Storm home is: "+ stormHomeInZip);
+        
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
  
@@ -234,14 +237,16 @@ public class StormOnYarn {
 
         // Set the necessary command to execute the application master
         Vector<String> vargs = new Vector<String>();
-        vargs.add("java");
+        vargs.add("$JAVA_HOME/bin/java");
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
         vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
         vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
         // Set java executable command
-        LOG.info("Setting up app master command:"+vargs);
+        
+        LOG.info("Classpath: " + env.get(Environment.CLASSPATH.name()));
+        LOG.info("Setting up app master command:" + vargs);
 
         amContainer.setCommands(vargs);
 
