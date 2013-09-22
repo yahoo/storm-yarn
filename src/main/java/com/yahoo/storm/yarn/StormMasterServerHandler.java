@@ -128,16 +128,8 @@ public class StormMasterServerHandler implements StormMaster.Iface {
             }
         }
 
-        private void writeConfigFile() throws IOException {
-            File configFile = new File("am-config/storm.yaml").getAbsoluteFile();
-            configFile.getParentFile().mkdirs();
-            Yaml yaml = new Yaml();
-            yaml.dump(_storm_conf, new FileWriter(configFile));
-        }
-
         private void startStormProcess() {
             try {
-                writeConfigFile();
                 LOG.info("Running: " + Joiner.on(" ").join(buildCommands()));
                 ProcessBuilder builder =
                         new ProcessBuilder(buildCommands());
