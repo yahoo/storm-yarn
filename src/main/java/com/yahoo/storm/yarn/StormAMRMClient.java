@@ -64,7 +64,6 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
     public StormAMRMClient(ApplicationAttemptId appAttemptId,
             @SuppressWarnings("rawtypes") Map storm_conf,
             YarnConfiguration hadoopConf) {
-        super(appAttemptId);
         this.appAttemptId = appAttemptId;
         this.storm_conf = storm_conf;
         this.hadoopConf = hadoopConf;
@@ -94,11 +93,13 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
     private void addSupervisorsRequest() {
         LOG.info("Creating new ContainerRequest with "
                 + this.maxResourceCapability + " and " + this.numSupervisors);
-        ContainerRequest req = new ContainerRequest(this.maxResourceCapability,
-                null, // String[] nodes,
-                null, // String[] racks,
-                DEFAULT_PRIORITY, this.numSupervisors);
-        super.addContainerRequest(req);
+        for (int i=0; i<numSupervisors; i++) {
+          ContainerRequest req = new ContainerRequest(this.maxResourceCapability,
+                  null, // String[] nodes,
+                  null, // String[] racks,
+                  DEFAULT_PRIORITY);
+          super.addContainerRequest(req);
+        }
     }
 
     public synchronized boolean addAllocatedContainers(
