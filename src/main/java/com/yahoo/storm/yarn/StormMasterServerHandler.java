@@ -16,8 +16,6 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.ProcessBuilder.Redirect;
 import java.net.InetAddress;
@@ -29,7 +27,6 @@ import org.apache.thrift7.TException;
 import org.json.simple.JSONValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.yaml.snakeyaml.Yaml;
 
 import backtype.storm.Config;
 

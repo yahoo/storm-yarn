@@ -48,7 +48,11 @@
             <id>apache.snapshots</id>
             <url>http://repository.apache.org/content/repositories/snapshots/</url>
         </repository>
-        
+        <!--repository>
+            <id>hortonworks</id>
+            <url>http://repo.hortonworks.com/content/repositories/releases/</url>
+        </repository-->
+
         <!-- Special: following this instruction alternative 3
         http://slf4j.org/faq.html#excludingJCL -->
         <repository>
@@ -59,7 +63,8 @@
     </repositories>
     <properties>
         <storm.version>0.9.0-wip21</storm.version>
-        <hadoop.version>2.0.4-alpha</hadoop.version>
+        <hadoop.version>2.1.0-beta</hadoop.version>
+        <!--hadoop.version>2.1.0.2.0.5.0-67</hadoop.version-->
     </properties>
     <dependencies>
         <dependency>
@@ -109,8 +114,14 @@
         </dependency>
         <dependency>
             <groupId>org.apache.hadoop</groupId>
+            <artifactId>hadoop-mapreduce-client-core</artifactId>
+            <version>${hadoop.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.hadoop</groupId>
             <artifactId>hadoop-yarn-client</artifactId>
             <version>${hadoop.version}</version>
+            <scope>provided</scope>
         </dependency>
         <dependency>
             <groupId>junit</groupId>
