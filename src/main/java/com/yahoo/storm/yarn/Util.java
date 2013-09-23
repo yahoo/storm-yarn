@@ -59,13 +59,10 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.yaml.snakeyaml.Yaml;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Joiner;
 
 class Util {
-  private static final Logger LOG = LoggerFactory.getLogger(LaunchCommand.class);
   private static final String STORM_CONF_PATH_STRING = "conf" + Path.SEPARATOR + "storm.yaml";
 
   static String getStormHome() {
@@ -77,7 +74,7 @@ class Util {
   }
 
   @SuppressWarnings("rawtypes")
-  static String getStormVersion(Map conf) throws IOException {
+  static String getStormVersion() throws IOException {
     File releaseFile = new File(getStormHome(), "RELEASE");
     if (releaseFile.exists()) {
       BufferedReader reader = new BufferedReader(new FileReader(releaseFile));

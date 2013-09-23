@@ -20,7 +20,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
-import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
@@ -48,10 +47,10 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.client.YarnClient;
-import org.apache.hadoop.yarn.client.YarnClientImpl;
+import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnRemoteException;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
@@ -60,7 +59,6 @@ import org.slf4j.LoggerFactory;
 
 import backtype.storm.utils.Utils;
 
-import com.yahoo.storm.yarn.Config;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class StormOnYarn {
@@ -72,7 +70,6 @@ public class StormOnYarn {
     @SuppressWarnings("rawtypes")
     private Map _stormConf;
     private MasterClient _client = null;
-    private InetSocketAddress _yarnRMaddr;
 
     private StormOnYarn(@SuppressWarnings("rawtypes") Map stormConf) {
         this(null, stormConf);
@@ -80,8 +77,7 @@ public class StormOnYarn {
 
     private StormOnYarn(ApplicationId appId, @SuppressWarnings("rawtypes") Map stormConf) {        
         _hadoopConf = new YarnConfiguration();  
-        _yarnRMaddr = _hadoopConf.getSocketAddr(YarnConfiguration.RM_ADDRESS, YarnConfiguration.DEFAULT_RM_ADDRESS, YarnConfiguration.DEFAULT_RM_PORT);
-        _yarn = new YarnClientImpl(_yarnRMaddr);
+        _yarn = YarnClient.createYarnClient();
         _stormConf = stormConf;
         _appId = appId;
         _yarn.init(_hadoopConf);
@@ -101,7 +97,7 @@ public class StormOnYarn {
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized StormMaster.Client getClient() throws YarnRemoteException {
+    public synchronized StormMaster.Client getClient() throws YarnException, IOException {
         if (_client == null) {
             String host = null;
             int port = 0;
@@ -141,7 +137,8 @@ public class StormOnYarn {
 
     private void launchApp(String appName, String queue, int amMB, String storm_zip_location) throws Exception {
         LOG.debug("StormOnYarn:launchApp() ...");
-        GetNewApplicationResponse app = _yarn.getNewApplication();
+        YarnClientApplication client_app = _yarn.createApplication();
+        GetNewApplicationResponse app = client_app.getNewApplicationResponse();
         _appId = app.getApplicationId();
         LOG.debug("_appId:"+_appId);
 
@@ -176,7 +173,7 @@ public class StormOnYarn {
         fs.copyFromLocalFile(false, true, src, dst);
         localResources.put("AppMaster.jar", Util.newYarnAppResource(fs, dst));
 
-        String stormVersion = Util.getStormVersion(_stormConf);
+        String stormVersion = Util.getStormVersion();
         Path zip;
         if (storm_zip_location != null) {
             zip = new Path(storm_zip_location);
@@ -208,7 +205,7 @@ public class StormOnYarn {
         ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
 
         //security tokens for HDFS distributed cache
-        amContainer.setContainerTokens(securityTokens);
+        amContainer.setTokens(securityTokens);
 
         // Set local resource info into app master container launch context
         amContainer.setLocalResources(localResources);
@@ -269,7 +266,7 @@ public class StormOnYarn {
         // For now, only memory is supported so we set memory requirements
         Resource capability = Records.newRecord(Resource.class);
         capability.setMemory(amMB);
-        amContainer.setResource(capability);
+        appContext.setResource(capability);
         appContext.setAMContainerSpec(amContainer);
 
         _yarn.submitApplication(appContext);
@@ -278,9 +275,9 @@ public class StormOnYarn {
 
     /**
      * Wait until the application is successfully launched
-     * @throws YarnRemoteException
+     * @throws YarnException
      */
-    public boolean waitUntilLaunched() throws YarnRemoteException {
+    public boolean waitUntilLaunched() throws YarnException, IOException {
         while (true) {
 
             // Check app status every 1 second.
