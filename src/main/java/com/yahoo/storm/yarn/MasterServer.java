@@ -66,7 +66,7 @@ public class MasterServer extends ThriftServer {
 
               AMCommand am_command = allocResponse.getAMCommand();
               if (am_command!=null &&
-                      (am_command.equals(AMCommand.AM_SHUTDOWN) || am_command.equals(AMCommand.AM_RESYNC))) {
+                      (am_command == AMCommand.AM_SHUTDOWN || am_command==AMCommand.AM_RESYNC)) {
                 LOG.info("Got AM_SHUTDOWN or AM_RESYNC from the RM");
                 _handler.stop();
                 System.exit(0);
@@ -130,8 +130,8 @@ public class MasterServer extends ThriftServer {
           appAttemptID = containerId.getApplicationAttemptId();
           LOG.info("appAttemptID from env:" + appAttemptID.toString());
         } else {
-          appAttemptID = Records.newRecord(ApplicationAttemptId.class);
-          LOG.info("appAttemptID newly created:" + appAttemptID.toString());
+          LOG.error("appAttemptID is not specified for storm master");
+          throw new Exception("appAttemptID is not specified for storm master");
         }
 
         @SuppressWarnings("rawtypes")
