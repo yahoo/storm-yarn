@@ -17,6 +17,7 @@
 package com.yahoo.storm.yarn;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -27,6 +28,8 @@ import java.util.TreeSet;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
 import org.apache.hadoop.yarn.api.records.Container;
@@ -136,6 +139,17 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
       throws IOException {
     // create a container launch context
     ContainerLaunchContext launchContext = Records.newRecord(ContainerLaunchContext.class);
+    UserGroupInformation user = UserGroupInformation.getCurrentUser();
+    try {
+      Credentials credentials = user.getCredentials();
+      DataOutputBuffer dob = new DataOutputBuffer();
+      credentials.writeTokenStorageToStream(dob);
+      ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+      launchContext.setTokens(securityTokens);
+    } catch (IOException e) {
+      LOG.warn("Getting current user info failed when trying to launch the container"
+              + e.getMessage());
+    }
 
     // CLC: env
     Map<String, String> env = new HashMap<String, String>();
@@ -169,11 +183,10 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
     List<String> supervisorArgs = Util.buildSupervisorCommands(this.storm_conf);
     launchContext.setCommands(supervisorArgs);
 
-    LOG.info("launchSupervisorOnContainer: startRequest prepared, calling startContainer. ");
     try {
+      LOG.info("Use NMClient to launch supervisors in container. ");
       nmClient.startContainer(container, launchContext);
 
-      UserGroupInformation user = UserGroupInformation.getCurrentUser();
       String userShortName = user.getShortUserName();
       if (userShortName != null)
         LOG.info("Supervisor log: http://" + container.getNodeHttpAddress() + "/node/containerlogs/"
