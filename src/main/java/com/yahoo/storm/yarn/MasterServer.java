@@ -27,17 +27,13 @@ import java.util.concurrent.LinkedBlockingQueue;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Options;
+import org.apache.hadoop.service.Service;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
-import org.apache.hadoop.yarn.api.records.Container;
-import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.ContainerStatus;
-import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
+import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.service.Service;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
@@ -51,7 +47,6 @@ import com.yahoo.storm.yarn.generated.StormMaster.Processor;
 
 public class MasterServer extends ThriftServer {
     private static final Logger LOG = LoggerFactory.getLogger(MasterServer.class);
-    private static ApplicationAttemptId _appAttemptID;
     private StormMasterServerHandler _handler;
 
     private Thread initAndStartHeartbeat(final StormAMRMClient client,
@@ -69,13 +64,15 @@ public class MasterServer extends ThriftServer {
               // We always send 50% progress.
               AllocateResponse allocResponse = client.allocate(0.5f);
 
-              if (allocResponse.getAMResponse().getReboot()) {
-                LOG.info("Got Reboot from the RM");
+              AMCommand am_command = allocResponse.getAMCommand();
+              if (am_command!=null &&
+                      (am_command == AMCommand.AM_SHUTDOWN || am_command==AMCommand.AM_RESYNC)) {
+                LOG.info("Got AM_SHUTDOWN or AM_RESYNC from the RM");
                 _handler.stop();
                 System.exit(0);
               }
 
-              List<Container> allocatedContainers = allocResponse.getAMResponse().getAllocatedContainers();
+              List<Container> allocatedContainers = allocResponse.getAllocatedContainers();
               if (allocatedContainers.size() > 0) {
                 // Add newly allocated containers to the client.
                 LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
@@ -90,7 +87,7 @@ public class MasterServer extends ThriftServer {
               }
 
               List<ContainerStatus> completedContainers =
-                  allocResponse.getAMResponse().getCompletedContainersStatuses();
+                  allocResponse.getCompletedContainersStatuses();
               
               if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
                 LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
@@ -122,17 +119,19 @@ public class MasterServer extends ThriftServer {
 
         CommandLine cl = new GnuParser().parse(opts, args);
 
+        ApplicationAttemptId appAttemptID;
         Map<String, String> envs = System.getenv();
-        _appAttemptID = Records.newRecord(ApplicationAttemptId.class);
         if (cl.hasOption("app_attempt_id")) {
-            String appIdStr = cl.getOptionValue("app_attempt_id", "");
-            _appAttemptID = ConverterUtils.toApplicationAttemptId(appIdStr);
-        } else if (envs.containsKey(ApplicationConstants.AM_CONTAINER_ID_ENV)) {
-            ContainerId containerId = 
-                    ConverterUtils.toContainerId(envs.get(ApplicationConstants.AM_CONTAINER_ID_ENV));
-            _appAttemptID = containerId.getApplicationAttemptId();
+          String appIdStr = cl.getOptionValue("app_attempt_id", "");
+          appAttemptID = ConverterUtils.toApplicationAttemptId(appIdStr);
+        } else if (envs.containsKey(ApplicationConstants.Environment.CONTAINER_ID.name())) {
+          ContainerId containerId = ConverterUtils.toContainerId(envs
+                  .get(ApplicationConstants.Environment.CONTAINER_ID.name()));
+          appAttemptID = containerId.getApplicationAttemptId();
+          LOG.info("appAttemptID from env:" + appAttemptID.toString());
         } else {
-            throw new IllegalArgumentException("Container and application attempt IDs not set in the environment");
+          LOG.error("appAttemptID is not specified for storm master");
+          throw new Exception("appAttemptID is not specified for storm master");
         }
 
         @SuppressWarnings("rawtypes")
@@ -145,13 +144,13 @@ public class MasterServer extends ThriftServer {
         storm_conf.put("nimbus.host", host);
 
         StormAMRMClient rmClient =
-                new StormAMRMClient(_appAttemptID, storm_conf, hadoopConf);
+                new StormAMRMClient(appAttemptID, storm_conf, hadoopConf);
         rmClient.init(hadoopConf);
         rmClient.start();
 
         BlockingQueue<Container> launcherQueue = new LinkedBlockingQueue<Container>();
 
-        MasterServer server = new MasterServer(storm_conf, rmClient);;
+        MasterServer server = new MasterServer(storm_conf, rmClient);
         try {
             final int port = Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT));
             final String target = host + ":" + port;
