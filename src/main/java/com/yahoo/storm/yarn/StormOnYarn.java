@@ -239,9 +239,6 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
 
-        String java_home = System.getenv("JAVA_HOME");
-        if (java_home!=null && !java_home.isEmpty())
-            env.put("JAVA_HOME", java_home);
         env.put("appJar", appMasterJar);
         env.put("appName", appName);
         env.put("appId", new Integer(_appId.getId()).toString());
@@ -250,7 +247,8 @@ public class StormOnYarn {
 
         // Set the necessary command to execute the application master
         Vector<String> vargs = new Vector<String>();
-        
+
+        String java_home = System.getenv("JAVA_HOME");
         if (java_home!=null && !java_home.isEmpty())
             vargs.add(System.getenv("JAVA_HOME")+"/bin/java");
         else 
