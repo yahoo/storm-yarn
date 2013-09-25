@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.fs.FileSystem;
@@ -62,7 +63,7 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
   private final Priority DEFAULT_PRIORITY = Records.newRecord(Priority.class);
   private final Set<Container> containers;
   private volatile boolean supervisorsAreToRun = false;
-  private int numSupervisors;
+  private AtomicInteger numSupervisors;
   private Resource maxResourceCapability;
   private ApplicationAttemptId appAttemptId;
   private NMClientImpl nmClient;
@@ -76,6 +77,7 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
     Integer pri = Utils.getInt(storm_conf.get(Config.MASTER_CONTAINER_PRIORITY));
     this.DEFAULT_PRIORITY.setPriority(pri);
     this.containers = new TreeSet<Container>();
+    numSupervisors = new AtomicInteger(0);
 
     // start am nm client
     nmClient = (NMClientImpl) NMClient.createNMClient();
@@ -96,7 +98,8 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
   }
 
   private void addSupervisorsRequest() {
-    for (int i=0; i<numSupervisors; i++) {
+    int num = numSupervisors.getAndSet(0);
+    for (int i=0; i<num; i++) {
       ContainerRequest req = new ContainerRequest(this.maxResourceCapability,
               null, // String[] nodes,
               null, // String[] racks,
@@ -105,8 +108,14 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
     }
   }
   
-  public synchronized boolean
-      addAllocatedContainers(List<Container> containers) {
+  public synchronized boolean addAllocatedContainers(List<Container> containers) {
+    for (int i=0; i<containers.size(); i++) {
+      ContainerRequest req = new ContainerRequest(this.maxResourceCapability,
+              null, // String[] nodes,
+              null, // String[] racks,
+              DEFAULT_PRIORITY);
+      super.removeContainerRequest(req);
+    }
     return this.containers.addAll(containers);
   }
 
@@ -126,12 +135,12 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
   }
 
   public synchronized void addSupervisors(int number) {
-    this.numSupervisors += number;
+    int num = numSupervisors.addAndGet(number);
     if (this.supervisorsAreToRun) {
-      LOG.info("Added " + number + " supervisors, and requesting containers...");
+      LOG.info("Added " + num + " supervisors, and requesting containers...");
       addSupervisorsRequest();
     } else {
-      LOG.info("Added " + number + " supervisors, but not requesting containers now.");
+      LOG.info("Added " + num + " supervisors, but not requesting containers now.");
     }
   }
 

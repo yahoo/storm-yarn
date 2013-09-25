@@ -75,13 +75,13 @@ public class MasterServer extends ThriftServer {
               List<Container> allocatedContainers = allocResponse.getAllocatedContainers();
               if (allocatedContainers.size() > 0) {
                 // Add newly allocated containers to the client.
-                LOG.debug("HB: Received allocated containers (" + allocatedContainers.size() + ")");
+                LOG.info("HB: Received allocated containers (" + allocatedContainers.size() + ")");
                 client.addAllocatedContainers(allocatedContainers);
                 if (client.supervisorsAreToRun()) {
-                  LOG.debug("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
+                  LOG.info("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
                   launcherQueue.addAll(allocatedContainers);
                 } else {
-                  LOG.debug("HB: Supervisors are to stop, so releasing all containers...");
+                  LOG.info("HB: Supervisors are to stop, so releasing all containers...");
                   client.stopAllSupervisors();
                 }
               }
