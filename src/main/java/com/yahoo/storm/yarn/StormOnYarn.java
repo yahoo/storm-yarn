@@ -250,7 +250,7 @@ public class StormOnYarn {
 
         String java_home = System.getenv("JAVA_HOME");
         if (java_home!=null && !java_home.isEmpty())
-            vargs.add(System.getenv("JAVA_HOME")+"/bin/java");
+            vargs.add(java_home+"/bin/java");
         else 
             vargs.add("java");
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
