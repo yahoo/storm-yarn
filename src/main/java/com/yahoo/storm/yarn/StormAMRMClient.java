@@ -115,6 +115,12 @@ class StormAMRMClient extends AMRMClientImpl {
   }
   
   public synchronized boolean addAllocatedContainers(List<Container> containers) {
+    ContainerRequest req = new ContainerRequest(this.maxResourceCapability,
+            null, // String[] nodes,
+            null, // String[] racks,
+            DEFAULT_PRIORITY,
+            containers.size());
+    super.removeContainerRequest(req);
     return this.containers.addAll(containers);
   }
 
