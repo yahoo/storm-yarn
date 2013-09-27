@@ -217,11 +217,10 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static List<String> buildSupervisorCommands(Map conf) throws IOException {
-      List<String> toRet = buildCommandPrefix("$JAVA_HOME", null, conf, backtype.storm.Config.NIMBUS_CHILDOPTS);      
+      List<String> toRet = 
+          buildCommandPrefix("$JAVA_HOME", null, conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
       toRet.add("-Dlogfile.name=supervisor.log");
       toRet.add("backtype.storm.daemon.supervisor");
-      toRet.add(0, "cat `basename $0` >> /var/log/hadoop-yarn/containers/container.log; ");
-      toRet.add("2>&1 | tee -a /var/log/hadoop-yarn/containers/container.log; test ${PIPESTATUS[0]} -eq 0");
 
       return toRet;
   }
