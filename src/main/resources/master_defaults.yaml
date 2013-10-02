@@ -30,6 +30,6 @@ storm.messaging.netty.max_retries: 100
 storm.messaging.netty.min_wait_ms: 1000
 storm.messaging.netty.max_wait_ms: 5000
 
-# Configuration paramter, which allows the launching machine to specify the JAVA_JOME
+# Configuration parameter that allows the launching machine to specify the JAVA_JOME
 # used when the application is executed on the YARN cluster.
 # storm.yarn.java_home: "/vol/anarchy/boneill/jdk1.7.0_40"
