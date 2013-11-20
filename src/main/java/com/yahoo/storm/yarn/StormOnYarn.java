@@ -221,21 +221,36 @@ public class StormOnYarn {
         //Make sure that AppMaster has access to all YARN JARs
         List<String> yarn_classpath_cmd = java.util.Arrays.asList("yarn", "classpath");
         ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd).redirectError(Redirect.INHERIT);
+        LOG.info("YARN CLASSPATH COMMAND = [" + yarn_classpath_cmd + "]");
         pb.environment().putAll(System.getenv());
         Process proc = pb.start();
         BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream(), "UTF-8"));
         String line = "";
-        StringBuilder yarn_class_path = new StringBuilder();
-        while ((line = reader.readLine() ) != null)
-            yarn_class_path.append(line); 
+        String yarn_class_path = (String) _stormConf.get("storm.yarn.yarn_classpath");
+        if (yarn_class_path == null){
+            StringBuilder yarn_class_path_builder = new StringBuilder();
+            while ((line = reader.readLine() ) != null){            
+                yarn_class_path_builder.append(line);             
+            }
+            yarn_class_path = yarn_class_path_builder.toString();
+        }
+        LOG.info("YARN CLASSPATH = [" + yarn_class_path + "]");
         proc.waitFor();
         reader.close();
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path.toString());
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path);
         
         String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
 
+        String java_home = (String) _stormConf.get("storm.yarn.java_home");
+        if (java_home == null)
+            java_home = System.getenv("JAVA_HOME");
+        
+        if (java_home != null && !java_home.isEmpty())
+          env.put("JAVA_HOME", java_home);
+        LOG.info("Using JAVA_HOME = [" + env.get("JAVA_HOME") + "]");
+        
         env.put("appJar", appMasterJar);
         env.put("appName", appName);
         env.put("appId", new Integer(_appId.getId()).toString());
@@ -244,9 +259,8 @@ public class StormOnYarn {
 
         // Set the necessary command to execute the application master
         Vector<String> vargs = new Vector<String>();
-        String java_home = System.getenv("JAVA_HOME");
         if (java_home != null && !java_home.isEmpty())
-          vargs.add(java_home + "/bin/java");
+          vargs.add(env.get("JAVA_HOME") + "/bin/java");
         else
           vargs.add("java");
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
