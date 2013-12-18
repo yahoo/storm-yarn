@@ -59,7 +59,7 @@
     </repositories>
     <properties>
         <storm.version>0.9.0-wip21</storm.version>
-        <hadoop.version>2.0.4-Intel</hadoop.version>
+        <hadoop.version>2.0.4-alpha</hadoop.version>
     </properties>
     <dependencies>
         <dependency>
@@ -153,8 +153,8 @@
                 <version>3.0</version>
                 <configuration>
                     <fork>true</fork>
-                    <source>1.6</source>
-                    <target>1.6</target>
+                    <source>1.7</source>
+                    <target>1.7</target>
                 </configuration>
             </plugin>
             <plugin>
