@@ -160,10 +160,11 @@ class Util {
   }
 
   @SuppressWarnings("rawtypes")
-  private static List<String> getCommonJavaParameters(Map conf, String childOptsKey) 
+  private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
           throws IOException {
       String stormHomePath = getStormHome();
       List<String> toRet = new ArrayList<String>();
+      toRet.add("java");
       toRet.add("-server");
       toRet.add("-Dstorm.home=" + stormHomePath);
       toRet.add("-Djava.library.path="
@@ -189,9 +190,8 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static List<String> buildUICommands(Map conf) throws IOException {
-      List<String> toRet = getCommonJavaParameters(conf, backtype.storm.Config.UI_CHILDOPTS);
-      File jvm = new File(new File(System.getProperty("java.home"), "bin"), "java");
-      toRet.add(0, jvm.toString());
+      List<String> toRet =
+              buildCommandPrefix(conf, backtype.storm.Config.UI_CHILDOPTS);
 
       toRet.add("-Dlogfile.name=ui.log");
       toRet.add("backtype.storm.ui.core");
@@ -201,10 +201,9 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static List<String> buildNimbusCommands(Map conf) throws IOException {
-      List<String> toRet = getCommonJavaParameters(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
-      File jvm = new File(new File(System.getProperty("java.home"), "bin"), "java");
-      toRet.add(0, jvm.toString());
-      
+      List<String> toRet =
+              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+
       toRet.add("-Dlogfile.name=nimbus.log");
       toRet.add("backtype.storm.daemon.nimbus");
 
@@ -213,12 +212,12 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static List<String> buildSupervisorCommands(Map conf) throws IOException {
-      List<String> toRet = getCommonJavaParameters(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
-      toRet.add(0, "$JAVA_HOME/bin/java");
-      
+      List<String> toRet =
+              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+
       toRet.add("-Dlogfile.name=supervisor.log");
       toRet.add("backtype.storm.daemon.supervisor");
-      toRet.add(0, "cat `basename $0` >> /var/log/hadoop-yarn/containers/container.log; ");
+      toRet.add(0, "cat `basename $0` > /var/log/hadoop-yarn/containers/container.log; ");
       toRet.add("2>&1 | tee -a /var/log/hadoop-yarn/containers/container.log; test ${PIPESTATUS[0]} -eq 0");
 
       return toRet;
