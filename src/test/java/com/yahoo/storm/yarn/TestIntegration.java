@@ -19,6 +19,7 @@ import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
+import java.lang.ProcessBuilder.Redirect;
 import java.net.URL;
 import java.util.List;
 import java.util.Map;
@@ -225,7 +226,9 @@ public class TestIntegration {
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private static int execute(List<String> cmd) throws InterruptedException, IOException {
         LOG.info(Joiner.on(" ").join(cmd));           
-        ProcessBuilder pb = new ProcessBuilder(cmd);
+        ProcessBuilder pb = new ProcessBuilder(cmd).redirectError(Redirect.INHERIT).redirectOutput(Redirect.INHERIT);
+        pb.redirectErrorStream(true);
+        pb.redirectOutput();
         Map env = pb.environment();
         env.putAll(System.getenv());
         env.put(Environment.PATH.name(), "bin:"+storm_home+File.separator+"bin:"+env.get(Environment.PATH.name()));
@@ -245,8 +248,6 @@ public class TestIntegration {
         }
 
         Process proc = pb.start();
-        Util.redirectStreamAsync(proc.getInputStream(), System.out);
-        Util.redirectStreamAsync(proc.getErrorStream(), System.err);
         int status = proc.waitFor();
         return status;
     }
