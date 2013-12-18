@@ -217,8 +217,6 @@ class Util {
 
       toRet.add("-Dlogfile.name=supervisor.log");
       toRet.add("backtype.storm.daemon.supervisor");
-      toRet.add(0, "cat `basename $0` > /var/log/hadoop-yarn/containers/container.log; ");
-      toRet.add("2>&1 | tee -a /var/log/hadoop-yarn/containers/container.log; test ${PIPESTATUS[0]} -eq 0");
 
       return toRet;
   }
@@ -247,7 +245,7 @@ class Util {
             public void visit(File file) {
                 String name = file.getName();
                 if (name.endsWith(".jar")) {
-                    pathSet.add(file.getPath());
+                    pathSet.add(file.getAbsolutePath());
                 }
             }
         };
@@ -264,7 +262,7 @@ class Util {
         return toRet;
     }
 
-    private static void traverse(File file, FileVisitor visitor) {
+    public static void traverse(File file, FileVisitor visitor) {
         if (file.isDirectory()) {
             File childs[] = file.listFiles();
             if (childs.length > 0) {
