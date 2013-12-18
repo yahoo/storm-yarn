@@ -20,9 +20,9 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.lang.ProcessBuilder.Redirect;
-import java.net.InetSocketAddress;
 import java.net.URL;
 import java.net.URLDecoder;
+import java.nio.ByteBuffer;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
@@ -31,6 +31,9 @@ import java.util.Vector;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.DataOutputBuffer;
+import org.apache.hadoop.mapreduce.security.TokenCache;
+import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.ApplicationConstants.Environment;
 import org.apache.hadoop.yarn.api.protocolrecords.GetNewApplicationResponse;
@@ -44,10 +47,10 @@ import org.apache.hadoop.yarn.api.records.LocalResourceType;
 import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
-import org.apache.hadoop.yarn.client.YarnClient;
-import org.apache.hadoop.yarn.client.YarnClientImpl;
+import org.apache.hadoop.yarn.client.api.YarnClient;
+import org.apache.hadoop.yarn.client.api.YarnClientApplication;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.exceptions.YarnRemoteException;
+import org.apache.hadoop.yarn.exceptions.YarnException;
 import org.apache.hadoop.yarn.util.Apps;
 import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
@@ -56,7 +59,6 @@ import org.slf4j.LoggerFactory;
 
 import backtype.storm.utils.Utils;
 
-import com.yahoo.storm.yarn.Config;
 import com.yahoo.storm.yarn.generated.StormMaster;
 
 public class StormOnYarn {
@@ -68,7 +70,6 @@ public class StormOnYarn {
     @SuppressWarnings("rawtypes")
     private Map _stormConf;
     private MasterClient _client = null;
-    private InetSocketAddress _yarnRMaddr;
 
     private StormOnYarn(@SuppressWarnings("rawtypes") Map stormConf) {
         this(null, stormConf);
@@ -76,8 +77,7 @@ public class StormOnYarn {
 
     private StormOnYarn(ApplicationId appId, @SuppressWarnings("rawtypes") Map stormConf) {        
         _hadoopConf = new YarnConfiguration();  
-        _yarnRMaddr = _hadoopConf.getSocketAddr(YarnConfiguration.RM_ADDRESS, YarnConfiguration.DEFAULT_RM_ADDRESS, YarnConfiguration.DEFAULT_RM_PORT);
-        _yarn = new YarnClientImpl(_yarnRMaddr);
+        _yarn = YarnClient.createYarnClient();
         _stormConf = stormConf;
         _appId = appId;
         _yarn.init(_hadoopConf);
@@ -97,7 +97,7 @@ public class StormOnYarn {
     }
 
     @SuppressWarnings("unchecked")
-    public synchronized StormMaster.Client getClient() throws YarnRemoteException {
+    public synchronized StormMaster.Client getClient() throws YarnException, IOException {
         if (_client == null) {
             String host = null;
             int port = 0;
@@ -137,7 +137,8 @@ public class StormOnYarn {
 
     private void launchApp(String appName, String queue, int amMB, String storm_zip_location) throws Exception {
         LOG.debug("StormOnYarn:launchApp() ...");
-        GetNewApplicationResponse app = _yarn.getNewApplication();
+        YarnClientApplication client_app = _yarn.createApplication();
+        GetNewApplicationResponse app = client_app.getNewApplicationResponse();
         _appId = app.getApplicationId();
         LOG.debug("_appId:"+_appId);
 
@@ -172,7 +173,7 @@ public class StormOnYarn {
         fs.copyFromLocalFile(false, true, src, dst);
         localResources.put("AppMaster.jar", Util.newYarnAppResource(fs, dst));
 
-        String stormVersion = Util.getStormVersion(_stormConf);
+        String stormVersion = Util.getStormVersion();
         Path zip;
         if (storm_zip_location != null) {
             zip = new Path(storm_zip_location);
@@ -188,9 +189,23 @@ public class StormOnYarn {
         }
         localResources.put("storm", Util.newYarnAppResource(fs, zip, LocalResourceType.ARCHIVE, visibility));
         
-        Path dirDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf, _hadoopConf);
+        Path confDst = Util.createConfigurationFileInFs(fs, appHome, _stormConf, _hadoopConf);
         // establish a symbolic link to conf directory
-        localResources.put("conf", Util.newYarnAppResource(fs, dirDst));
+        localResources.put("conf", Util.newYarnAppResource(fs, confDst));
+
+        // Setup security tokens
+        Path[] paths = new Path[3];
+        paths[0] = dst;
+        paths[1] = zip;
+        paths[2] = confDst;
+        Credentials credentials = new Credentials();
+        TokenCache.obtainTokensForNamenodes(credentials, paths, _hadoopConf);
+        DataOutputBuffer dob = new DataOutputBuffer();
+        credentials.writeTokenStorageToStream(dob);
+        ByteBuffer securityTokens = ByteBuffer.wrap(dob.getData(), 0, dob.getLength());
+
+        //security tokens for HDFS distributed cache
+        amContainer.setTokens(securityTokens);
 
         // Set local resource info into app master container launch context
         amContainer.setLocalResources(localResources);
@@ -203,43 +218,57 @@ public class StormOnYarn {
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./conf");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./AppMaster.jar");
 
-        for (String c : _hadoopConf.getStrings(
-                YarnConfiguration.YARN_APPLICATION_CLASSPATH,
-                YarnConfiguration.DEFAULT_YARN_APPLICATION_CLASSPATH)) {
-            Apps.addToEnvironment(env, Environment.CLASSPATH.name(), c.trim());
-        }
-        
-        //Make sure that AppMaster has access to all YARN JARs     
+        //Make sure that AppMaster has access to all YARN JARs
         List<String> yarn_classpath_cmd = java.util.Arrays.asList("yarn", "classpath");
         ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd).redirectError(Redirect.INHERIT);
+        LOG.info("YARN CLASSPATH COMMAND = [" + yarn_classpath_cmd + "]");
         pb.environment().putAll(System.getenv());
         Process proc = pb.start();
         BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream(), "UTF-8"));
         String line = "";
-        StringBuilder yarn_class_path = new StringBuilder();
-        while ((line = reader.readLine() ) != null)
-            yarn_class_path.append(line); 
+        String yarn_class_path = (String) _stormConf.get("storm.yarn.yarn_classpath");
+        if (yarn_class_path == null){
+            StringBuilder yarn_class_path_builder = new StringBuilder();
+            while ((line = reader.readLine() ) != null){            
+                yarn_class_path_builder.append(line);             
+            }
+            yarn_class_path = yarn_class_path_builder.toString();
+        }
+        LOG.info("YARN CLASSPATH = [" + yarn_class_path + "]");
         proc.waitFor();
         reader.close();
-        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path.toString());
+        Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path);
         
         String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
- 
+
+        String java_home = (String) _stormConf.get("storm.yarn.java_home");
+        if (java_home == null)
+            java_home = System.getenv("JAVA_HOME");
+        
+        if (java_home != null && !java_home.isEmpty())
+          env.put("JAVA_HOME", java_home);
+        LOG.info("Using JAVA_HOME = [" + env.get("JAVA_HOME") + "]");
+        
         env.put("appJar", appMasterJar);
         env.put("appName", appName);
         env.put("appId", new Integer(_appId.getId()).toString());
+        env.put("STORM_LOG_DIR", ApplicationConstants.LOG_DIR_EXPANSION_VAR);
         amContainer.setEnvironment(env);
 
         // Set the necessary command to execute the application master
         Vector<String> vargs = new Vector<String>();
-        vargs.add("java");
+        if (java_home != null && !java_home.isEmpty())
+          vargs.add(env.get("JAVA_HOME") + "/bin/java");
+        else
+          vargs.add("java");
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
+        vargs.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/master.log");
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
-        vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
+        vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
         // Set java executable command
         LOG.info("Setting up app master command:"+vargs);
 
@@ -249,7 +278,7 @@ public class StormOnYarn {
         // For now, only memory is supported so we set memory requirements
         Resource capability = Records.newRecord(Resource.class);
         capability.setMemory(amMB);
-        amContainer.setResource(capability);
+        appContext.setResource(capability);
         appContext.setAMContainerSpec(amContainer);
 
         _yarn.submitApplication(appContext);
@@ -258,9 +287,9 @@ public class StormOnYarn {
 
     /**
      * Wait until the application is successfully launched
-     * @throws YarnRemoteException
+     * @throws YarnException
      */
-    public boolean waitUntilLaunched() throws YarnRemoteException {
+    public boolean waitUntilLaunched() throws YarnException, IOException {
         while (true) {
 
             // Check app status every 1 second.
