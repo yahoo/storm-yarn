@@ -14,10 +14,6 @@
   limitations under the License. See accompanying LICENSE file.
 -->
 
-We intend to support JDK6 in this repo.
-==============
-
-
 storm-yarn
 =================
 Storm-yarn enables Storm clusters to be deployed into machines managed by Hadoop YARN.  It is still a work
