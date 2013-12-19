@@ -70,7 +70,6 @@ class StormMasterCommand implements ClientCommand {
         }
 
         StormOnYarn storm = null;
-        String conf_str = null;
         try {
             storm = StormOnYarn.attachToApp(appId, stormConf);
             StormMaster.Client client = storm.getClient();

@@ -19,7 +19,6 @@ package com.yahoo.storm.yarn;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.lang.ProcessBuilder.Redirect;
 import java.net.URL;
 import java.net.URLDecoder;
 import java.nio.ByteBuffer;
@@ -220,10 +219,11 @@ public class StormOnYarn {
 
         //Make sure that AppMaster has access to all YARN JARs
         List<String> yarn_classpath_cmd = java.util.Arrays.asList("yarn", "classpath");
-        ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd).redirectError(Redirect.INHERIT);
+        ProcessBuilder pb = new ProcessBuilder(yarn_classpath_cmd);
         LOG.info("YARN CLASSPATH COMMAND = [" + yarn_classpath_cmd + "]");
         pb.environment().putAll(System.getenv());
         Process proc = pb.start();
+        Util.redirectStreamAsync(proc.getErrorStream(), System.err);
         BufferedReader reader = new BufferedReader(new InputStreamReader(proc.getInputStream(), "UTF-8"));
         String line = "";
         String yarn_class_path = (String) _stormConf.get("storm.yarn.yarn_classpath");
