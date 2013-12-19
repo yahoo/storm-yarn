@@ -25,20 +25,17 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.PrintStream;
 
 import java.io.OutputStreamWriter;
-import java.nio.file.attribute.BasicFileAttributes;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.PathMatcher;
-import java.nio.file.SimpleFileVisitor;
+
 import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.Iterator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 import java.util.Set;
 import java.util.jar.JarEntry;
 import java.util.zip.ZipEntry;
@@ -73,7 +70,6 @@ class Util {
       return ret;
   }
 
-  @SuppressWarnings("rawtypes")
   static String getStormVersion() throws IOException {
     File releaseFile = new File(getStormHome(), "RELEASE");
     if (releaseFile.exists()) {
@@ -278,33 +274,49 @@ class Util {
       return Joiner.on(File.pathSeparatorChar).join(paths);
   }
 
-  private static List<String> findAllJarsInPaths(String... pathStrs)
-          throws IOException {
-      java.nio.file.FileSystem fs = FileSystems.getDefault();
-      final PathMatcher matcher = fs.getPathMatcher("glob:**.jar");
-      final LinkedHashSet<String> pathSet = new LinkedHashSet<String>();
-      for (String pathStr : pathStrs) {
-          java.nio.file.Path start = fs.getPath(pathStr);
-          Files.walkFileTree(start, new SimpleFileVisitor<java.nio.file.Path>() {
-              @Override
-              public FileVisitResult visitFile(java.nio.file.Path path,
-                      BasicFileAttributes attrs) throws IOException {
-                  if (attrs.isRegularFile() && matcher.matches(path)
-                          && !pathSet.contains(path)) {
-                      java.nio.file.Path parent = path.getParent();
-                      pathSet.add(parent + File.separator + "*");
-                      return FileVisitResult.SKIP_SIBLINGS;
-                  }
-                  return FileVisitResult.CONTINUE;
-              }
-          });
-      }
-      final List<String> toRet = new ArrayList<String>();
-      for (String p : pathSet) {
-          toRet.add(p);
-      }
-      return toRet;
-  }
+    private static interface FileVisitor {
+        public void visit(File file);
+    }
+  
+    private static List<String> findAllJarsInPaths(String... pathStrs) {
+        final LinkedHashSet<String> pathSet = new LinkedHashSet<String>();
+
+        FileVisitor visitor = new FileVisitor() {
+
+            @Override
+            public void visit(File file) {
+                String name = file.getName();
+                if (name.endsWith(".jar")) {
+                    pathSet.add(file.getPath());
+                }
+            }
+        };
+
+        for (String path : pathStrs) {
+            File file = new File(path);
+            traverse(file, visitor);
+        }
+
+        final List<String> toRet = new ArrayList<String>();
+        for (String p : pathSet) {
+            toRet.add(p);
+        }
+        return toRet;
+    }
+
+    private static void traverse(File file, FileVisitor visitor) {
+        if (file.isDirectory()) {
+            File childs[] = file.listFiles();
+            if (childs.length > 0) {
+                for (int i = 0; i < childs.length; i++) {
+                    File child = childs[i];
+                    traverse(child, visitor);
+                }
+            }
+        } else {
+            visitor.visit(file);
+        }
+    }
 
   static String getApplicationHomeForId(String id) {
       if (id.isEmpty()) {
@@ -366,4 +378,16 @@ class Util {
         }
         return true;
     }
+    
+    static void redirectStreamAsync(final InputStream input, final PrintStream output) {
+      new Thread(new Runnable() {        
+          @Override
+          public void run() {
+              Scanner scanner = new Scanner(input);
+              while (scanner.hasNextLine()) {
+                  output.println(scanner.nextLine());
+              }
+          }
+      }).start();
+  }
 }
