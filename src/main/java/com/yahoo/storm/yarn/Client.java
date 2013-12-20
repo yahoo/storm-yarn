@@ -40,13 +40,17 @@ public class Client {
         public Options getOpts();
 
         /**
+         * @return header description for this command
+         */
+        public String getHeaderDescription();
+        
+        /**
          * Do the processing
          * @param cl the arguments to process
          * @param stormConf the storm configuration to use
          * @throws Exception on any error
          */
-        public void process(CommandLine cl,
-                @SuppressWarnings("rawtypes") Map stormConf) throws Exception;
+        public void process(CommandLine cl) throws Exception;
     }
 
     public static class HelpCommand implements ClientCommand {
@@ -60,10 +64,14 @@ public class Client {
             return new Options();
         }
 
+        @Override
+        public String getHeaderDescription() {
+          return "storm-yarn help";
+        }
+        
         @SuppressWarnings("unchecked")
         @Override
-        public void process(CommandLine cl,
-                @SuppressWarnings("rawtypes") Map ignored) throws Exception {
+        public void process(CommandLine cl) throws Exception {
             printHelpFor(cl.getArgList());
         }
 
@@ -76,7 +84,7 @@ public class Client {
                 ClientCommand c = _commands.get(command);
                 if (c != null) {
                     //TODO Show any arguments to the commands.
-                    f.printHelp(command, c.getOpts());
+                    f.printHelp(command,  c.getHeaderDescription(), c.getOpts(), null);
                 } else {
                     System.err.println("ERROR: " + c + " is not a supported command.");
                     //TODO make this exit with an error at some point
@@ -105,7 +113,8 @@ public class Client {
         commands.put("startSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.START_SUPERVISORS));
         commands.put("stopSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.STOP_SUPERVISORS));
         commands.put("shutdown", new StormMasterCommand(StormMasterCommand.COMMAND.SHUTDOWN));
-
+        commands.put("version", new VersionCommand());
+        
         String commandName = null;
         String[] commandArgs = null;
         if (args.length < 1) {
@@ -129,14 +138,8 @@ public class Client {
         if(cl.hasOption("help")) {
             help.printHelpFor(Arrays.asList(commandName));
         } else {
-            String config_file = null;
-            if (!commandName.equals("help")) {
-                List remaining_args = cl.getArgList();
-                if (remaining_args!=null && !remaining_args.isEmpty())
-                    config_file = (String)remaining_args.get(0);
-            }
-            Map storm_conf = Config.readStormConfig(config_file);
-            command.process(cl, storm_conf);
+           
+            command.process(cl);
         }
     }
 

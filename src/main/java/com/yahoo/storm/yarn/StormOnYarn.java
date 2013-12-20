@@ -172,7 +172,7 @@ public class StormOnYarn {
         fs.copyFromLocalFile(false, true, src, dst);
         localResources.put("AppMaster.jar", Util.newYarnAppResource(fs, dst));
 
-        String stormVersion = Util.getStormVersion();
+        Version stormVersion = Util.getStormVersion();
         Path zip;
         if (storm_zip_location != null) {
             zip = new Path(storm_zip_location);
@@ -239,7 +239,7 @@ public class StormOnYarn {
         reader.close();
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path);
         
-        String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion);
+        String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion.version);
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
 
@@ -267,8 +267,8 @@ public class StormOnYarn {
         vargs.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/master.log");
         //vargs.add("-verbose:class");
         vargs.add("com.yahoo.storm.yarn.MasterServer");
-        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
-        vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
+        vargs.add("1>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stdout");
+        vargs.add("2>" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/stderr");
         // Set java executable command
         LOG.info("Setting up app master command:"+vargs);
 
