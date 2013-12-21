@@ -14,8 +14,22 @@
 package com.yahoo.storm.yarn;
 
 public class Version {
-  public String version = "";
-  public String build = "";
+  
+  private final String version;
+  private final String build;
+  
+  public Version(String version, String build) {
+    this.version = version;
+    this.build = build;
+  }
+  
+  public String version() {
+    return this.version;
+  }
+
+  public String build() {
+    return this.build;
+  }
   
   @Override
   public String toString() {

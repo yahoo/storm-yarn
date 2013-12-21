@@ -72,28 +72,30 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static Version getStormVersion() throws IOException {
-    Version version = new Version();
+
+    String versionNumber = "Unknown";
     File releaseFile = new File(getStormHome(), "RELEASE");
     if (releaseFile.exists()) {
       BufferedReader reader = new BufferedReader(new FileReader(releaseFile));
       try {
-        version.version = reader.readLine().trim();
+        versionNumber = reader.readLine().trim();
       } finally {
         reader.close();
       }
-    } else {
-      version.version = "Unknown";
     }
     
     File buildFile = new File(getStormHome(), "BUILD");
+    String buildNumber = null;
     if (buildFile.exists()) {
       BufferedReader reader = new BufferedReader(new FileReader(buildFile));
       try {
-        version.build = reader.readLine().trim();
+        buildNumber = reader.readLine().trim();
       } finally {
         reader.close();
       }
     }
+    
+    Version version = new Version(versionNumber, buildNumber);
     return version;
   }
 
