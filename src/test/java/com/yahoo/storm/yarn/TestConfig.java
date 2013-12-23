@@ -103,7 +103,7 @@ public class TestConfig {
                         fos.close();
                     }
                 } catch(Exception ex){
-
+                   ex.printStackTrace();
                 }
             }
             zipIs.close();

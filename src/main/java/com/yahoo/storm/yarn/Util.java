@@ -70,18 +70,33 @@ class Util {
       return ret;
   }
 
-  static String getStormVersion() throws IOException {
+  @SuppressWarnings("rawtypes")
+  static Version getStormVersion() throws IOException {
+
+    String versionNumber = "Unknown";
     File releaseFile = new File(getStormHome(), "RELEASE");
     if (releaseFile.exists()) {
       BufferedReader reader = new BufferedReader(new FileReader(releaseFile));
       try {
-        return reader.readLine().trim();
+        versionNumber = reader.readLine().trim();
       } finally {
         reader.close();
       }
-    } else {
-      return "Unknown";
     }
+    
+    File buildFile = new File(getStormHome(), "BUILD");
+    String buildNumber = null;
+    if (buildFile.exists()) {
+      BufferedReader reader = new BufferedReader(new FileReader(buildFile));
+      try {
+        buildNumber = reader.readLine().trim();
+      } finally {
+        reader.close();
+      }
+    }
+    
+    Version version = new Version(versionNumber, buildNumber);
+    return version;
   }
 
   static String getStormHomeInZip(FileSystem fs, Path zip, String stormVersion) throws IOException, RuntimeException {
