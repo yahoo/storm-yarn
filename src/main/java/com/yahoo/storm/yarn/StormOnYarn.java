@@ -239,7 +239,7 @@ public class StormOnYarn {
         reader.close();
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), yarn_class_path);
         
-        String stormHomeInZip = Util.getStormHomeInZip(fs, zip, stormVersion.version());
+        String stormHomeInZip = Util.getStormHomeInZip(fs, zip);
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/*");
         Apps.addToEnvironment(env, Environment.CLASSPATH.name(), "./storm/" + stormHomeInZip + "/lib/*");
 

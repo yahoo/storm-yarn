@@ -70,7 +70,6 @@ class Util {
       return ret;
   }
 
-  @SuppressWarnings("rawtypes")
   static Version getStormVersion() throws IOException {
 
     String versionNumber = "Unknown";
@@ -99,15 +98,20 @@ class Util {
     return version;
   }
 
-  static String getStormHomeInZip(FileSystem fs, Path zip, String stormVersion) throws IOException, RuntimeException {
+  static String getStormHomeInZip(FileSystem fs, Path zip) throws IOException, RuntimeException {
     FSDataInputStream fsInputStream = fs.open(zip);
     ZipInputStream zipInputStream = new ZipInputStream(fsInputStream);
     ZipEntry entry = zipInputStream.getNextEntry();
     while (entry != null) {
       String entryName = entry.getName();
-      if (entryName.matches("^storm(-" + stormVersion + ")?/")) {
+      final String STORM_BIN = "bin/storm";
+      if (entryName.endsWith(STORM_BIN)) {
         fsInputStream.close();
-        return entryName.replace("/", "");
+        String stormHome = entryName.substring(0, entryName.length() - STORM_BIN.length());
+        if (stormHome.endsWith("/")) {
+          stormHome = stormHome.substring(0, stormHome.length() - 1);
+        }
+        return stormHome;
       }
       entry = zipInputStream.getNextEntry();
     }
@@ -221,20 +225,34 @@ class Util {
   }
 
   @SuppressWarnings("rawtypes")
-  private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
+  private static List<String> buildCommandPrefix(String javaHome, String stormConfFile, Map conf, String childOptsKey) 
           throws IOException {
       String stormHomePath = getStormHome();
       List<String> toRet = new ArrayList<String>();
-      if (System.getenv("JAVA_HOME") != null)
-        toRet.add(System.getenv("JAVA_HOME") + "/bin/java");
-      else
-        toRet.add("java");
+      
+      String java = javaHome + File.separator + "bin" +  File.separator + "java"; 
+      toRet.add(java);      
       toRet.add("-server");
       toRet.add("-Dstorm.home=" + stormHomePath);
       toRet.add("-Djava.library.path=" + conf.get(backtype.storm.Config.JAVA_LIBRARY_PATH));
-      toRet.add("-Dstorm.conf.file=" + new File(STORM_CONF_PATH_STRING).getName());
+      
+      String stormConfFileName = "";
+      String stormConfDirPath = "";
+      if (null == stormConfFile) {
+        stormConfFileName = new File(STORM_CONF_PATH_STRING).getName();
+      } else {
+        int slashPosition = stormConfFile.lastIndexOf(File.separator);
+        if (-1 == slashPosition) {
+          stormConfFileName = stormConfFile;
+        } else {
+          stormConfFileName = stormConfFile.substring(slashPosition + 1);
+          stormConfDirPath = stormConfFile.substring(0, slashPosition);
+        }
+      }
+      
+      toRet.add("-Dstorm.conf.file=" + stormConfFileName);
       toRet.add("-cp");
-      toRet.add(buildClassPathArgument());
+      toRet.add(buildClassPathArgument(stormConfDirPath));
 
       if (conf.containsKey(childOptsKey)
               && conf.get(childOptsKey) != null) {
@@ -246,8 +264,9 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static List<String> buildUICommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.UI_CHILDOPTS);
+    String javaHome = System.getProperty("java.home");
+      List<String> toRet = 
+	           buildCommandPrefix(javaHome, null, conf, backtype.storm.Config.UI_CHILDOPTS);
 
       toRet.add("-Dstorm.options=" + backtype.storm.Config.NIMBUS_HOST + "=localhost");
       toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/ui.log");
@@ -258,9 +277,8 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static List<String> buildNimbusCommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
-
+    String javaHome = System.getProperty("java.home");
+      List<String> toRet = buildCommandPrefix(javaHome, null, conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
       toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/nimbus.log");
       toRet.add("backtype.storm.daemon.nimbus");
 
@@ -269,19 +287,116 @@ class Util {
 
   @SuppressWarnings("rawtypes")
   static List<String> buildSupervisorCommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
-
+      List<String> toRet = 
+	           buildCommandPrefix("$JAVA_HOME", null, conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
       toRet.add("-Dworker.logdir="+ ApplicationConstants.LOG_DIR_EXPANSION_VAR);
       toRet.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/supervisor.log");
       toRet.add("backtype.storm.daemon.supervisor");
-
       return toRet;
   }
 
-  private static String buildClassPathArgument() throws IOException {
+  @SuppressWarnings("rawtypes")
+  static List<String> buildTopologyListCommands(String stormConfPath) throws IOException {
+      Map storm_conf = Config.readStormConfig(stormConfPath);
+      String javaHome = System.getProperty("java.home");
+      List<String> toRet = buildCommandPrefix(javaHome, 
+          stormConfPath, storm_conf, null);
+            
+      Map<String, String> env = System.getenv();
+      String stormJarEnv = env.get("STORM_JAR_JVM_OPTS");
+      if (null != stormJarEnv) {
+        toRet.add(stormJarEnv);
+      }
+      toRet.add("backtype.storm.command.list");
+      return toRet;
+  }
+  
+  @SuppressWarnings("rawtypes")
+  static List<String> buildRebalanceCommands(String stormConfPath,  
+      String topologyId, int timeToWait, int newWorkerNumber, Map<String, Integer> parallism) throws IOException {
+    Map storm_conf = Config.readStormConfig(stormConfPath);
+    String javaHome = System.getProperty("java.home");
+    List<String> toRet = buildCommandPrefix(javaHome, 
+        stormConfPath, storm_conf, null);
+          
+    Map<String, String> env = System.getenv();
+    String stormJarEnv = env.get("STORM_JAR_JVM_OPTS");
+    if (null != stormJarEnv) {
+      toRet.add(stormJarEnv);
+    }
+    toRet.add("backtype.storm.command.rebalance");
+    toRet.add(topologyId);
+    if (-1 != timeToWait) {
+      toRet.add("-w");
+      toRet.add(Integer.toString(timeToWait));
+    }
+    
+    if (-1 != newWorkerNumber) {
+      toRet.add("-n");
+      toRet.add(Integer.toString(newWorkerNumber));
+    }
+    
+    if (null != parallism) {
+      Set<String> keys = parallism.keySet();
+      for (String key : keys) {
+        toRet.add("-e");
+        Integer value = parallism.get(key);
+        toRet.add(key + "=" + value.toString());        
+      }
+    }    
+    return toRet;
+  }
+  
+  @SuppressWarnings("rawtypes")
+  static List<String> buildTopologyKillCommands(String stormConfPath, String topologyId, String timeToWait) throws IOException {
+      Map storm_conf = Config.readStormConfig(stormConfPath);
+      String javaHome = System.getProperty("java.home");
+      List<String> toRet = buildCommandPrefix(javaHome, 
+          stormConfPath, storm_conf, null);
+            
+      Map<String, String> env = System.getenv();
+      String stormJarEnv = env.get("STORM_JAR_JVM_OPTS");
+      if (null != stormJarEnv) {
+        toRet.add(stormJarEnv);
+      }
+      toRet.add("backtype.storm.command.kill_topology");
+      toRet.add(topologyId);
+      if (null != timeToWait) {
+        toRet.add("-w");
+        toRet.add(timeToWait);
+      }
+      return toRet;
+  }
+  
+  @SuppressWarnings("rawtypes")
+  static List<String> buildTopologySubmissionCommands(String stormJarClass, 
+      String stormJar, String stormConfPath, String[] parameters) throws IOException {
+      Map storm_conf = Config.readStormConfig(stormConfPath);
+      String javaHome = System.getProperty("java.home");
+      List<String> toRet = buildCommandPrefix(javaHome, 
+          stormConfPath, storm_conf, null);
+      
+      toRet.add("-Dstorm.jar=" + stormJar);
+      
+      Map<String, String> env = System.getenv();
+      String stormJarEnv = env.get("STORM_JAR_JVM_OPTS");
+      if (null != stormJarEnv) {
+        toRet.add(stormJarEnv);
+      }
+      toRet.add(stormJarClass);
+      for (int i = 0; i < parameters.length; i++) {
+        toRet.add(parameters[i]);
+      }
+      return toRet;
+  }
+  private static String buildClassPathArgument(String stormConfPath) throws IOException {
       List<String> paths = new ArrayList<String>();
-      paths.add(new File(STORM_CONF_PATH_STRING).getParent());
+        
+        if (null == stormConfPath || stormConfPath.isEmpty()) {
+          paths.add(new File(STORM_CONF_PATH_STRING).getParent());
+        } else {
+          paths.add(stormConfPath);
+        }
       paths.add(getStormHome());
       for (String jarPath : findAllJarsInPaths(getStormHome(), getStormHome() + File.separator + "lib")) {
           paths.add(jarPath);

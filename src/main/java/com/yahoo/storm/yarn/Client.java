@@ -103,6 +103,10 @@ public class Client {
         HelpCommand help = new HelpCommand(commands);
         commands.put("help", help);
         commands.put("launch", new LaunchCommand());
+        commands.put("submit", new StormTopologySubmitCommand());
+        commands.put("kill", new StormTopologyKillCommand());
+        commands.put("list", new StormTopologyListCommand());
+        commands.put("rebalance", new StormTopologyRebalanceCommand());
         commands.put("setStormConfig", new StormMasterCommand(StormMasterCommand.COMMAND.SET_STORM_CONFIG));
         commands.put("getStormConfig", new StormMasterCommand(StormMasterCommand.COMMAND.GET_STORM_CONFIG));
         commands.put("addSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.ADD_SUPERVISORS));
