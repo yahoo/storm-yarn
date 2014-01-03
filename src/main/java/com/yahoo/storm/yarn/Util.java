@@ -41,6 +41,7 @@ import java.util.jar.JarEntry;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 
+import backtype.storm.utils.Utils;
 import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -61,6 +62,8 @@ import com.google.common.base.Joiner;
 
 class Util {
   private static final String STORM_CONF_PATH_STRING = "conf" + Path.SEPARATOR + "storm.yaml";
+  private static final String STORM_CONF_SUPERVISOR_SLOTS_PORTS =
+      "supervisor.slots.ports";
 
   static String getStormHome() {
       String ret = System.getProperty("storm.home");
@@ -137,6 +140,28 @@ class Util {
       if (m.getValue() == null) 
         it.remove();
     }
+  }
+
+  /**
+   * Get the number of workers for a supervisor. Will count the number of
+   * workers from the number of slots provided in the supervisor.slots.ports
+   * storm configuration
+   *
+   * @param stormConf
+   */
+  @SuppressWarnings("rawtypes")
+  static int getNumWorkers(Map stormConf) {
+    List slots = (List) stormConf.get(STORM_CONF_SUPERVISOR_SLOTS_PORTS);
+    if(slots == null || slots.size() == 0) {
+      return 1; //default to one worker
+    }
+    return slots.size();
+  }
+
+  static int getSupervisorSizeMB(Map stormConf) {
+    Object sizeObj = stormConf.get(Config.SUPERVISOR_SIZE_MB);
+    return sizeObj != null ? Utils.getInt(sizeObj) :
+        Config.DEFAULT_SUPERVISOR_SIZE;
   }
 
   @SuppressWarnings("rawtypes")

@@ -80,10 +80,16 @@ public class MasterServer extends ThriftServer {
               if (allocatedContainers.size() > 0) {
                 // Add newly allocated containers to the client.
                 LOG.info("HB: Received allocated containers (" + allocatedContainers.size() + ")");
-                client.addAllocatedContainers(allocatedContainers);
                 if (client.supervisorsAreToRun()) {
                   LOG.info("HB: Supervisors are to run, so queueing (" + allocatedContainers.size() + ") containers...");
-                  launcherQueue.addAll(allocatedContainers);
+                  for(Container allocatedContainer : allocatedContainers) {
+                    if(client.addAllocatedContainer(allocatedContainer)){
+                      if(LOG.isDebugEnabled()) {
+                        LOG.debug("HB: Queuing supervisor container["+allocatedContainer+"]");
+                      }
+                      launcherQueue.addAll(allocatedContainers);
+                    }
+                  }
                 } else {
                   LOG.info("HB: Supervisors are to stop, so releasing all containers...");
                   client.stopAllSupervisors();
@@ -95,6 +101,9 @@ public class MasterServer extends ThriftServer {
               
               if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
                 LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
+                for(ContainerStatus containerStatus : completedContainers) {
+                  client.stopSupervisors(containerStatus.getContainerId());
+                }
                 client.startAllSupervisors();
               }
             
@@ -162,8 +171,6 @@ public class MasterServer extends ThriftServer {
             RegisterApplicationMasterResponse resp =
                     rmClient.registerApplicationMaster(addr.getHostName(), port, null);
             LOG.info("Got a registration response "+resp);
-            LOG.info("Max Capability "+resp.getMaximumResourceCapability());
-            rmClient.setMaxResource(resp.getMaximumResourceCapability());
             LOG.info("Starting HB thread");
             server.initAndStartHeartbeat(rmClient, launcherQueue,
                     (Integer) storm_conf

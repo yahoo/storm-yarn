@@ -16,43 +16,31 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.TreeSet;
-import java.util.concurrent.atomic.AtomicInteger;
-
-import org.apache.hadoop.security.UserGroupInformation;
+import backtype.storm.utils.Utils;
+import com.google.common.collect.BiMap;
+import com.google.common.collect.HashBiMap;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DataOutputBuffer;
 import org.apache.hadoop.security.Credentials;
+import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
-import org.apache.hadoop.yarn.api.records.Container;
-import org.apache.hadoop.yarn.api.records.ContainerId;
-import org.apache.hadoop.yarn.api.records.ContainerLaunchContext;
-import org.apache.hadoop.yarn.api.records.LocalResource;
-import org.apache.hadoop.yarn.api.records.LocalResourceType;
-import org.apache.hadoop.yarn.api.records.LocalResourceVisibility;
-import org.apache.hadoop.yarn.api.records.Priority;
-import org.apache.hadoop.yarn.api.records.Resource;
-import org.apache.hadoop.yarn.conf.YarnConfiguration;
-import org.apache.hadoop.yarn.util.Records;
-
+import org.apache.hadoop.yarn.api.records.*;
 import org.apache.hadoop.yarn.client.api.AMRMClient.ContainerRequest;
 import org.apache.hadoop.yarn.client.api.NMClient;
 import org.apache.hadoop.yarn.client.api.impl.AMRMClientImpl;
 import org.apache.hadoop.yarn.client.api.impl.NMClientImpl;
-
+import org.apache.hadoop.yarn.conf.YarnConfiguration;
+import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import backtype.storm.utils.Utils;
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
 
 class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
   private static final Logger LOG = LoggerFactory.getLogger(StormAMRMClient.class);
@@ -61,10 +49,10 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
   private final Map storm_conf;
   private final YarnConfiguration hadoopConf;
   private final Priority DEFAULT_PRIORITY = Records.newRecord(Priority.class);
-  private final Set<Container> containers;
+  private final BiMap<NodeId, ContainerId> runningSupervisors;
+  private final Resource supervisorResource;
   private volatile boolean supervisorsAreToRun = false;
   private AtomicInteger numSupervisors;
-  private Resource maxResourceCapability;
   private ApplicationAttemptId appAttemptId;
   private NMClientImpl nmClient;
 
@@ -76,13 +64,22 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
     this.hadoopConf = hadoopConf;
     Integer pri = Utils.getInt(storm_conf.get(Config.MASTER_CONTAINER_PRIORITY));
     this.DEFAULT_PRIORITY.setPriority(pri);
-    this.containers = new TreeSet<Container>();
     numSupervisors = new AtomicInteger(0);
+    runningSupervisors = Maps.synchronizedBiMap(HashBiMap.<NodeId,
+        ContainerId>create());
 
     // start am nm client
     nmClient = (NMClientImpl) NMClient.createNMClient();
     nmClient.init(hadoopConf);
     nmClient.start();
+
+    //get number of slots for supervisor
+    int numWorkersPerSupervisor = Util.getNumWorkers(storm_conf);
+    int supervisorSizeMB = Util.getSupervisorSizeMB(storm_conf);
+    //add 1 for the supervisor itself
+    supervisorResource =
+        Resource.newInstance(supervisorSizeMB, numWorkersPerSupervisor + 1);
+    LOG.info("Supervisors will allocate Yarn Resource["+supervisorResource+"]");
   }
 
   public synchronized void startAllSupervisors() {
@@ -90,7 +87,33 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
     this.supervisorsAreToRun = true;
     this.addSupervisorsRequest();
   }
-  
+
+  /**
+   * Stopping a supervisor by {@link NodeId}
+   * @param nodeIds
+   */
+  public synchronized void stopSupervisors(NodeId... nodeIds) {
+    if(LOG.isDebugEnabled()){
+      LOG.debug(
+          "Stopping supervisors at nodes[" + Arrays.toString(nodeIds) + "], " +
+              "releasing all containers.");
+    }
+    releaseSupervisors(nodeIds);
+  }
+
+  /**
+   * Need to be able to stop a supervisor by {@link ContainerId}
+   * @param containerIds supervisor containers to stop
+   */
+  public synchronized void stopSupervisors(ContainerId... containerIds) {
+    if(LOG.isDebugEnabled()){
+      LOG.debug("Stopping supervisors in containers[" +
+          Arrays.toString(containerIds) + "], " +
+          "releasing all containers.");
+    }
+    releaseSupervisors(containerIds);
+  }
+
   public synchronized void stopAllSupervisors() {
     LOG.debug("Stopping all supervisors, releasing all containers...");
     this.supervisorsAreToRun = false;
@@ -100,36 +123,106 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
   private void addSupervisorsRequest() {
     int num = numSupervisors.getAndSet(0);
     for (int i=0; i<num; i++) {
-      ContainerRequest req = new ContainerRequest(this.maxResourceCapability,
+      ContainerRequest req = new ContainerRequest(this.supervisorResource,
               null, // String[] nodes,
               null, // String[] racks,
               DEFAULT_PRIORITY);
       super.addContainerRequest(req);
     }
   }
-  
-  public synchronized boolean addAllocatedContainers(List<Container> containers) {
-    for (int i=0; i<containers.size(); i++) {
-      ContainerRequest req = new ContainerRequest(this.maxResourceCapability,
-              null, // String[] nodes,
-              null, // String[] racks,
-              DEFAULT_PRIORITY);
-      super.removeContainerRequest(req);
+
+  /**
+   * Add supervisor from allocation. If supervisor is already running there,
+   * release the assigned container.
+   *
+   * @param container Container to make supervisor
+   * @return true if supervisor assigned, false if supervisor is not assigned
+   */
+  public synchronized boolean addAllocatedContainer(Container container) {
+      ContainerId containerId = container.getId();
+      NodeId nodeId = container.getNodeId();
+
+      //check if supervisor is already running at this host, if so,do not request
+      if (!runningSupervisors.containsKey(nodeId)) {
+        //add a running supervisor
+        addRunningSupervisor(nodeId, containerId);
+
+        ContainerRequest req = new ContainerRequest(this.supervisorResource,
+                null, // String[] nodes,
+                null, // String[] racks,
+                DEFAULT_PRIORITY);
+        super.removeContainerRequest(req);
+        return true;
+      } else {
+        //deallocate this request
+        LOG.info("Supervisor already running on node["+nodeId+"]");
+        super.releaseAssignedContainer(containerId);
+        //since no allocation, increase the number of supervisors to allocate
+        //in hopes that another node may be added in the future
+        numSupervisors.incrementAndGet();
+        return false;
+      }
+  }
+
+  /**
+   * Will add this node and container to the running supervisors. And also
+   * add the node to the blacklist.
+   * @param nodeId
+   * @param containerId
+   */
+  private void addRunningSupervisor(NodeId nodeId, ContainerId containerId) {
+    runningSupervisors.put(nodeId, containerId);
+    //add to blacklist, so no more resources are allocated here
+    super.updateBlacklist(Lists.newArrayList(nodeId.getHost()), null);
+  }
+
+  /**
+   * Will remove this node from the running supervisors. And also remove from
+   * the blacklist
+   * @param nodeId Node to remove
+   * @return ContainerId if in the list of running supervisors, null if not
+   */
+  private ContainerId removeRunningSupervisor(NodeId nodeId) {
+    ContainerId containerId = runningSupervisors.remove(nodeId);
+    if(containerId != null) {
+      super.updateBlacklist(null, Lists.newArrayList(nodeId.getHost()));
     }
-    return this.containers.addAll(containers);
+    return containerId;
   }
 
   private synchronized void releaseAllSupervisorsRequest() {
-    Iterator<Container> it = this.containers.iterator();
-    ContainerId id;
-    while (it.hasNext()) {
-      id = it.next().getId();
-      LOG.debug("Releasing container (id:"+id+")");
-      releaseAssignedContainer(id);
-      it.remove();
+    Set<NodeId> nodeIds = runningSupervisors.keySet();
+    this.releaseSupervisors(nodeIds.toArray(new NodeId[nodeIds.size()]));
+  }
+
+  /**
+   * This is the main entry point to release a supervisor.
+   * @param nodeIds
+   */
+  private synchronized void releaseSupervisors(NodeId... nodeIds) {
+    for(NodeId nodeId : nodeIds) {
+      //remove from running supervisors list
+      ContainerId containerId = removeRunningSupervisor(nodeId);
+      if(containerId != null) {
+        LOG.debug("Releasing container (id:"+containerId+")");
+        //release the containers on the specified nodes
+        super.releaseAssignedContainer(containerId);
+        //increase the number of supervisors to request on the next heartbeat
+        numSupervisors.incrementAndGet();
+      }
     }
   }
-  
+
+  private synchronized void releaseSupervisors(ContainerId... containerIds) {
+    BiMap<ContainerId, NodeId> inverse = runningSupervisors.inverse();
+    for(ContainerId containerId : containerIds) {
+      NodeId nodeId = inverse.get(containerId);
+      if(nodeId != null) {
+        this.releaseSupervisors(nodeId);
+      }
+    }
+  }
+
   public synchronized boolean supervisorsAreToRun() {
     return this.supervisorsAreToRun;
   }
@@ -208,10 +301,5 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
       LOG.error("Caught an exception while trying to start a container", e);
       System.exit(-1);
     }
-  }
-
-  public void setMaxResource(Resource maximumResourceCapability) {
-    this.maxResourceCapability = maximumResourceCapability;
-    LOG.info("Max Capability is now "+this.maxResourceCapability);
   }
 }
