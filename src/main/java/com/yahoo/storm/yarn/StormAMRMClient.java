@@ -182,8 +182,12 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
               LocalResourceType.ARCHIVE, LocalResourceVisibility.APPLICATION));
 
     String appHome = Util.getApplicationHomeForId(appAttemptId.toString());
-    Path confDst = Util.createConfigurationFileInFs(fs, appHome,
-            this.storm_conf, this.hadoopConf);
+    
+    String containerHome = appHome + Path.SEPARATOR + container.getId().getId();
+    
+    Path confDst = Util.createConfigurationFileInFs(fs, containerHome,
+                 this.storm_conf, this.hadoopConf);
+    
     localResources.put("conf", Util.newYarnAppResource(fs, confDst));
 
     launchContext.setLocalResources(localResources);
