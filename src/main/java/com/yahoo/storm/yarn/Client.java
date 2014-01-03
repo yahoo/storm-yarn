@@ -103,7 +103,7 @@ public class Client {
         HelpCommand help = new HelpCommand(commands);
         commands.put("help", help);
         commands.put("launch", new LaunchCommand());
-        commands.put("submit", new StormTopologySubmitCommand());
+        commands.put("jar", new StormTopologySubmitCommand());
         commands.put("kill", new StormTopologyKillCommand());
         commands.put("list", new StormTopologyListCommand());
         commands.put("rebalance", new StormTopologyRebalanceCommand());
