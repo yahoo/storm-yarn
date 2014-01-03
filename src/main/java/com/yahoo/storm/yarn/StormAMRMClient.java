@@ -50,9 +50,9 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
   private final YarnConfiguration hadoopConf;
   private final Priority DEFAULT_PRIORITY = Records.newRecord(Priority.class);
   private final BiMap<NodeId, ContainerId> runningSupervisors;
+  private final Resource supervisorResource;
   private volatile boolean supervisorsAreToRun = false;
   private AtomicInteger numSupervisors;
-  private Resource maxResourceCapability;
   private ApplicationAttemptId appAttemptId;
   private NMClientImpl nmClient;
 
@@ -72,6 +72,14 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
     nmClient = (NMClientImpl) NMClient.createNMClient();
     nmClient.init(hadoopConf);
     nmClient.start();
+
+    //get number of slots for supervisor
+    int numWorkersPerSupervisor = Util.getNumWorkers(storm_conf);
+    int supervisorSizeMB = Util.getSupervisorSizeMB(storm_conf);
+    //add 1 for the supervisor itself
+    supervisorResource =
+        Resource.newInstance(supervisorSizeMB, numWorkersPerSupervisor + 1);
+    LOG.info("Supervisors will allocate Yarn Resource["+supervisorResource+"]");
   }
 
   public synchronized void startAllSupervisors() {
@@ -115,7 +123,7 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
   private void addSupervisorsRequest() {
     int num = numSupervisors.getAndSet(0);
     for (int i=0; i<num; i++) {
-      ContainerRequest req = new ContainerRequest(this.maxResourceCapability,
+      ContainerRequest req = new ContainerRequest(this.supervisorResource,
               null, // String[] nodes,
               null, // String[] racks,
               DEFAULT_PRIORITY);
@@ -139,9 +147,8 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
         //add a running supervisor
         addRunningSupervisor(nodeId, containerId);
 
-        ContainerRequest req =
-            new ContainerRequest(this.maxResourceCapability, null,
-                // String[] nodes,
+        ContainerRequest req = new ContainerRequest(this.supervisorResource,
+                null, // String[] nodes,
                 null, // String[] racks,
                 DEFAULT_PRIORITY);
         super.removeContainerRequest(req);
@@ -290,10 +297,5 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest>  {
       LOG.error("Caught an exception while trying to start a container", e);
       System.exit(-1);
     }
-  }
-
-  public void setMaxResource(Resource maximumResourceCapability) {
-    this.maxResourceCapability = maximumResourceCapability;
-    LOG.info("Max Capability is now " + this.maxResourceCapability);
   }
 }

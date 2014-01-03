@@ -36,7 +36,12 @@ public class Config {
     //# of milliseconds to wait for YARN report on Storm Master host/port
     final public static String YARN_REPORT_WAIT_MILLIS = "yarn.report.wait.millis";
     final public static String MASTER_HEARTBEAT_INTERVAL_MILLIS = "master.heartbeat.interval.millis";
-    
+
+    //size of the supervisor to request in yarn. This includes the supervisor
+    // and workers
+    final public static String SUPERVISOR_SIZE_MB = "supervisor.container.size-mb";
+    final public static int DEFAULT_SUPERVISOR_SIZE = 8192;
+
     @SuppressWarnings("rawtypes")
     static public Map readStormConfig() {
         return readStormConfig(null);

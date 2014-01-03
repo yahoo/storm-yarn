@@ -171,8 +171,6 @@ public class MasterServer extends ThriftServer {
             RegisterApplicationMasterResponse resp =
                     rmClient.registerApplicationMaster(addr.getHostName(), port, null);
             LOG.info("Got a registration response "+resp);
-            LOG.info("Max Capability "+resp.getMaximumResourceCapability());
-            rmClient.setMaxResource(resp.getMaximumResourceCapability());
             LOG.info("Starting HB thread");
             server.initAndStartHeartbeat(rmClient, launcherQueue,
                     (Integer) storm_conf
