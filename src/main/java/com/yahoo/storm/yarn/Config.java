@@ -40,7 +40,7 @@ public class Config {
     //size of the supervisor to request in yarn. This includes the supervisor
     // and workers
     final public static String SUPERVISOR_SIZE_MB = "supervisor.container.size-mb";
-    final public static int DEFAULT_SUPERVISOR_SIZE = 8192;
+    final public static int DEFAULT_SUPERVISOR_SIZE = 1024;
 
     @SuppressWarnings("rawtypes")
     static public Map readStormConfig() {
