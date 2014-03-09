@@ -15,16 +15,28 @@
 package com.yahoo.storm.yarn;
 
 import org.apache.commons.cli.CommandLine;
+import org.apache.commons.cli.Options;
+import com.yahoo.storm.yarn.Client.ClientCommand;
 
-class StormTopologyKillCommand extends StormCommand {
+class ClassPathCommand implements ClientCommand {
+  
+  ClassPathCommand() {
+  }
 
   @Override
+  public Options getOpts() {
+    Options opts = new Options();
+    return opts;
+  }
+  
+  @Override
   public String getHeaderDescription() {
-    return "storm-yarn kill -appId=xx -w wait-time-seconds topologyId";
+    return "storm-yarn classpath";
   }
 
   @Override
   public void process(CommandLine cl) throws Exception {
-    super.process("kill", cl);
+    String classpath = System.getProperty("java.class.path");
+    System.out.println(classpath);
   }
 }

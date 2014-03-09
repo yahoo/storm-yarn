@@ -16,15 +16,15 @@ package com.yahoo.storm.yarn;
 
 import org.apache.commons.cli.CommandLine;
 
-class StormTopologyKillCommand extends StormCommand {
+class StormTopologyActivateCommand extends StormCommand {
 
   @Override
   public String getHeaderDescription() {
-    return "storm-yarn kill -appId=xx -w wait-time-seconds topologyId";
+    return "storm-yarn activate -appId=xx topologyId";
   }
 
   @Override
   public void process(CommandLine cl) throws Exception {
-    super.process("kill", cl);
+    super.process("activate", cl);
   }
 }

@@ -70,7 +70,7 @@ class LaunchCommand implements ClientCommand {
                   queue, amSize,
                   stormConf,
                   storm_zip_location);
-      LOG.debug("Submitted application's ID:" + storm.getAppId());
+      LOG.info("Submitted application's ID:" + storm.getAppId());
 
       //download storm.yaml file
       String storm_yaml_output = cl.getOptionValue("stormConfOutput");

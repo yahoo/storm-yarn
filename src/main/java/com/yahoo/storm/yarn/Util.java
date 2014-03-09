@@ -23,8 +23,10 @@ import java.io.OutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.PrintStream;
 
 import java.io.OutputStreamWriter;
@@ -143,6 +145,27 @@ class Util {
     }
   }
 
+  static void writeStormConf(FileSystem fs, Map stormConf, Path dest) 
+          throws IOException {
+      //storm.yaml
+      FSDataOutputStream out = fs.create(dest);
+      Yaml yaml = new Yaml();
+      OutputStreamWriter writer = new OutputStreamWriter(out);
+      rmNulls(stormConf);
+      yaml.dump(stormConf, writer);
+      writer.close();
+      out.close();
+  }
+  
+  static void writeYarnConf(FileSystem fs, YarnConfiguration yarnConf, Path dest) 
+          throws IOException {
+      FSDataOutputStream  out = fs.create(dest);
+      OutputStreamWriter writer = new OutputStreamWriter(out);
+      yarnConf.writeXml(writer);
+      writer.close();
+      out.close();
+  }
+  
   @SuppressWarnings("rawtypes")
   static Path createConfigurationFileInFs(FileSystem fs,
           String appHome, Map stormConf, YarnConfiguration yarnConf) 
@@ -154,25 +177,15 @@ class Util {
     fs.mkdirs(dirDst);
     
     //storm.yaml
-    FSDataOutputStream out = fs.create(confDst);
-    Yaml yaml = new Yaml();
-    OutputStreamWriter writer = new OutputStreamWriter(out);
-    rmNulls(stormConf);
-    yaml.dump(stormConf, writer);
-    writer.close();
-    out.close();
-
+    writeStormConf(fs, stormConf, confDst);
+    
     //yarn-site.xml
     Path yarn_site_xml = new Path(dirDst, "yarn-site.xml");
-    out = fs.create(yarn_site_xml);
-    writer = new OutputStreamWriter(out);
-    yarnConf.writeXml(writer);
-    writer.close();
-    out.close();
-
+    writeYarnConf(fs, yarnConf, yarn_site_xml);
+    
     //logback.xml
     Path logback_xml = new Path(dirDst, "logback.xml");
-    out = fs.create(logback_xml);
+    FSDataOutputStream out = fs.create(logback_xml);
     CreateLogbackXML(out);
     out.close();
 
@@ -225,8 +238,15 @@ class Util {
   }
 
   @SuppressWarnings("rawtypes")
-  private static List<String> buildCommandPrefix(String javaHome, String stormConfFile, Map conf, String childOptsKey) 
+  private static List<String> buildCommandPrefix(String javaHome,  Map conf, String childOptsKey) 
           throws IOException {
+      String stormConfFileName = new File(STORM_CONF_PATH_STRING).getName();
+      return buildCommandPrefix(javaHome, stormConfFileName, conf, childOptsKey);
+  }
+  
+  @SuppressWarnings("rawtypes")
+  private static List<String> buildCommandPrefix(String javaHome, String stormConfFilePath, Map conf, 
+          String childOptsKey) throws IOException {
       String stormHomePath = getStormHome();
       List<String> toRet = new ArrayList<String>();
       
@@ -235,24 +255,10 @@ class Util {
       toRet.add("-server");
       toRet.add("-Dstorm.home=" + stormHomePath);
       toRet.add("-Djava.library.path=" + conf.get(backtype.storm.Config.JAVA_LIBRARY_PATH));
-      
-      String stormConfFileName = "";
-      String stormConfDirPath = "";
-      if (null == stormConfFile) {
-        stormConfFileName = new File(STORM_CONF_PATH_STRING).getName();
-      } else {
-        int slashPosition = stormConfFile.lastIndexOf(File.separator);
-        if (-1 == slashPosition) {
-          stormConfFileName = stormConfFile;
-        } else {
-          stormConfFileName = stormConfFile.substring(slashPosition + 1);
-          stormConfDirPath = stormConfFile.substring(0, slashPosition);
-        }
-      }
-      
-      toRet.add("-Dstorm.conf.file=" + stormConfFileName);
+     
+      toRet.add("-Dstorm.conf.file=" + stormConfFilePath);
       toRet.add("-cp");
-      toRet.add(buildClassPathArgument(stormConfDirPath));
+      toRet.add(buildClassPathArgument());
 
       if (conf.containsKey(childOptsKey)
               && conf.get(childOptsKey) != null) {
@@ -266,10 +272,12 @@ class Util {
   static List<String> buildUICommands(Map conf) throws IOException {
     String javaHome = System.getProperty("java.home");
       List<String> toRet = 
-	           buildCommandPrefix(javaHome, null, conf, backtype.storm.Config.UI_CHILDOPTS);
+	           buildCommandPrefix(javaHome, conf, backtype.storm.Config.UI_CHILDOPTS);
 
       toRet.add("-Dstorm.options=" + backtype.storm.Config.NIMBUS_HOST + "=localhost");
       toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/ui.log");
+      toRet.add("-Daccess.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/access.log");
+      toRet.add("-Dmetrics.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/metrics.log");
       toRet.add("backtype.storm.ui.core");
 
       return toRet;
@@ -278,8 +286,10 @@ class Util {
   @SuppressWarnings("rawtypes")
   static List<String> buildNimbusCommands(Map conf) throws IOException {
     String javaHome = System.getProperty("java.home");
-      List<String> toRet = buildCommandPrefix(javaHome, null, conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+      List<String> toRet = buildCommandPrefix(javaHome, conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
       toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/nimbus.log");
+      toRet.add("-Daccess.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/access.log");
+      toRet.add("-Dmetrics.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/metrics.log");
       toRet.add("backtype.storm.daemon.nimbus");
 
       return toRet;
@@ -288,115 +298,18 @@ class Util {
   @SuppressWarnings("rawtypes")
   static List<String> buildSupervisorCommands(Map conf) throws IOException {
       List<String> toRet = 
-	           buildCommandPrefix("$JAVA_HOME", null, conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+	           buildCommandPrefix("$JAVA_HOME", conf, backtype.storm.Config.SUPERVISOR_CHILDOPTS);
       toRet.add("-Dworker.logdir="+ ApplicationConstants.LOG_DIR_EXPANSION_VAR);
       toRet.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/supervisor.log");
+      toRet.add("-Daccess.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/access.log");
+      toRet.add("-Dmetrics.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/metrics.log");
       toRet.add("backtype.storm.daemon.supervisor");
       return toRet;
   }
-
-  @SuppressWarnings("rawtypes")
-  static List<String> buildTopologyListCommands(String stormConfPath) throws IOException {
-      Map storm_conf = Config.readStormConfig(stormConfPath);
-      String javaHome = System.getProperty("java.home");
-      List<String> toRet = buildCommandPrefix(javaHome, 
-          stormConfPath, storm_conf, null);
-            
-      Map<String, String> env = System.getenv();
-      String stormJarEnv = env.get("STORM_JAR_JVM_OPTS");
-      if (null != stormJarEnv) {
-        toRet.add(stormJarEnv);
-      }
-      toRet.add("backtype.storm.command.list");
-      return toRet;
-  }
   
-  @SuppressWarnings("rawtypes")
-  static List<String> buildRebalanceCommands(String stormConfPath,  
-      String topologyId, int timeToWait, int newWorkerNumber, Map<String, Integer> parallism) throws IOException {
-    Map storm_conf = Config.readStormConfig(stormConfPath);
-    String javaHome = System.getProperty("java.home");
-    List<String> toRet = buildCommandPrefix(javaHome, 
-        stormConfPath, storm_conf, null);
-          
-    Map<String, String> env = System.getenv();
-    String stormJarEnv = env.get("STORM_JAR_JVM_OPTS");
-    if (null != stormJarEnv) {
-      toRet.add(stormJarEnv);
-    }
-    toRet.add("backtype.storm.command.rebalance");
-    toRet.add(topologyId);
-    if (-1 != timeToWait) {
-      toRet.add("-w");
-      toRet.add(Integer.toString(timeToWait));
-    }
-    
-    if (-1 != newWorkerNumber) {
-      toRet.add("-n");
-      toRet.add(Integer.toString(newWorkerNumber));
-    }
-    
-    if (null != parallism) {
-      Set<String> keys = parallism.keySet();
-      for (String key : keys) {
-        toRet.add("-e");
-        Integer value = parallism.get(key);
-        toRet.add(key + "=" + value.toString());        
-      }
-    }    
-    return toRet;
-  }
-  
-  @SuppressWarnings("rawtypes")
-  static List<String> buildTopologyKillCommands(String stormConfPath, String topologyId, String timeToWait) throws IOException {
-      Map storm_conf = Config.readStormConfig(stormConfPath);
-      String javaHome = System.getProperty("java.home");
-      List<String> toRet = buildCommandPrefix(javaHome, 
-          stormConfPath, storm_conf, null);
-            
-      Map<String, String> env = System.getenv();
-      String stormJarEnv = env.get("STORM_JAR_JVM_OPTS");
-      if (null != stormJarEnv) {
-        toRet.add(stormJarEnv);
-      }
-      toRet.add("backtype.storm.command.kill_topology");
-      toRet.add(topologyId);
-      if (null != timeToWait) {
-        toRet.add("-w");
-        toRet.add(timeToWait);
-      }
-      return toRet;
-  }
-  
-  @SuppressWarnings("rawtypes")
-  static List<String> buildTopologySubmissionCommands(String stormJarClass, 
-      String stormJar, String stormConfPath, String[] parameters) throws IOException {
-      Map storm_conf = Config.readStormConfig(stormConfPath);
-      String javaHome = System.getProperty("java.home");
-      List<String> toRet = buildCommandPrefix(javaHome, 
-          stormConfPath, storm_conf, null);
-      
-      toRet.add("-Dstorm.jar=" + stormJar);
-      
-      Map<String, String> env = System.getenv();
-      String stormJarEnv = env.get("STORM_JAR_JVM_OPTS");
-      if (null != stormJarEnv) {
-        toRet.add(stormJarEnv);
-      }
-      toRet.add(stormJarClass);
-      for (int i = 0; i < parameters.length; i++) {
-        toRet.add(parameters[i]);
-      }
-      return toRet;
-  }
-  private static String buildClassPathArgument(String stormConfPath) throws IOException {
+  private static String buildClassPathArgument() throws IOException {
       List<String> paths = new ArrayList<String>();
-        
-        if (null == stormConfPath || stormConfPath.isEmpty()) {
-          paths.add(new File(STORM_CONF_PATH_STRING).getParent());
-        } else {
-          paths.add(stormConfPath);
-        }
+      paths.add(new File(STORM_CONF_PATH_STRING).getParent());
       paths.add(getStormHome());
       for (String jarPath : findAllJarsInPaths(getStormHome(), getStormHome() + File.separator + "lib")) {
           paths.add(jarPath);
