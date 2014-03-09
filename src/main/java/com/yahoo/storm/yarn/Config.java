@@ -31,8 +31,6 @@ public class Config {
     final public static String MASTER_THRIFT_PORT = "master.thrift.port";
     final public static String MASTER_TIMEOUT_SECS = "master.timeout.secs";
     final public static String MASTER_SIZE_MB = "master.container.size-mb";
-    final public static String SUPERVISOR_CONTAINER_SIZE_MB = "supervisor.container.size-mb";
-    final public static String SUPERVISOR_VCORE_NUM = "supervisor.vcores";
     final public static String MASTER_NUM_SUPERVISORS = "master.initial-num-supervisors";
     final public static String MASTER_CONTAINER_PRIORITY = "master.container.priority";
     //# of milliseconds to wait for YARN report on Storm Master host/port

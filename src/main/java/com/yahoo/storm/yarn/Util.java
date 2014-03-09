@@ -23,10 +23,8 @@ import java.io.OutputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
-import java.io.InputStream;
 import java.io.PrintStream;
 
 import java.io.OutputStreamWriter;
@@ -72,6 +70,7 @@ class Util {
       return ret;
   }
 
+  @SuppressWarnings("rawtypes")
   static Version getStormVersion() throws IOException {
 
     String versionNumber = "Unknown";
@@ -100,20 +99,15 @@ class Util {
     return version;
   }
 
-  static String getStormHomeInZip(FileSystem fs, Path zip) throws IOException, RuntimeException {
+  static String getStormHomeInZip(FileSystem fs, Path zip, String stormVersion) throws IOException, RuntimeException {
     FSDataInputStream fsInputStream = fs.open(zip);
     ZipInputStream zipInputStream = new ZipInputStream(fsInputStream);
     ZipEntry entry = zipInputStream.getNextEntry();
     while (entry != null) {
       String entryName = entry.getName();
-      final String STORM_BIN = "bin/storm";
-      if (entryName.endsWith(STORM_BIN)) {
+      if (entryName.matches("^storm(-" + stormVersion + ")?/")) {
         fsInputStream.close();
-        String stormHome = entryName.substring(0, entryName.length() - STORM_BIN.length());
-        if (stormHome.endsWith("/")) {
-          stormHome = stormHome.substring(0, stormHome.length() - 1);
-        }
-        return stormHome;
+        return entryName.replace("/", "");
       }
       entry = zipInputStream.getNextEntry();
     }
@@ -145,27 +139,6 @@ class Util {
     }
   }
 
-  static void writeStormConf(FileSystem fs, Map stormConf, Path dest) 
-          throws IOException {
-      //storm.yaml
-      FSDataOutputStream out = fs.create(dest);
-      Yaml yaml = new Yaml();
-      OutputStreamWriter writer = new OutputStreamWriter(out);
-      rmNulls(stormConf);
-      yaml.dump(stormConf, writer);
-      writer.close();
-      out.close();
-  }
-  
-  static void writeYarnConf(FileSystem fs, YarnConfiguration yarnConf, Path dest) 
-          throws IOException {
-      FSDataOutputStream  out = fs.create(dest);
-      OutputStreamWriter writer = new OutputStreamWriter(out);
-      yarnConf.writeXml(writer);
-      writer.close();
-      out.close();
-  }
-  
   @SuppressWarnings("rawtypes")
   static Path createConfigurationFileInFs(FileSystem fs,
           String appHome, Map stormConf, YarnConfiguration yarnConf) 
@@ -177,15 +150,25 @@ class Util {
     fs.mkdirs(dirDst);
     
     //storm.yaml
-    writeStormConf(fs, stormConf, confDst);
-    
+    FSDataOutputStream out = fs.create(confDst);
+    Yaml yaml = new Yaml();
+    OutputStreamWriter writer = new OutputStreamWriter(out);
+    rmNulls(stormConf);
+    yaml.dump(stormConf, writer);
+    writer.close();
+    out.close();
+
     //yarn-site.xml
     Path yarn_site_xml = new Path(dirDst, "yarn-site.xml");
-    writeYarnConf(fs, yarnConf, yarn_site_xml);
-    
+    out = fs.create(yarn_site_xml);
+    writer = new OutputStreamWriter(out);
+    yarnConf.writeXml(writer);
+    writer.close();
+    out.close();
+
     //logback.xml
     Path logback_xml = new Path(dirDst, "logback.xml");
-    FSDataOutputStream out = fs.create(logback_xml);
+    out = fs.create(logback_xml);
     CreateLogbackXML(out);
     out.close();
 
@@ -276,8 +259,6 @@ class Util {
 
       toRet.add("-Dstorm.options=" + backtype.storm.Config.NIMBUS_HOST + "=localhost");
       toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/ui.log");
-      toRet.add("-Daccess.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/access.log");
-      toRet.add("-Dmetrics.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/metrics.log");
       toRet.add("backtype.storm.ui.core");
 
       return toRet;
@@ -288,8 +269,6 @@ class Util {
     String javaHome = System.getProperty("java.home");
       List<String> toRet = buildCommandPrefix(javaHome, conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
       toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/nimbus.log");
-      toRet.add("-Daccess.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/access.log");
-      toRet.add("-Dmetrics.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/metrics.log");
       toRet.add("backtype.storm.daemon.nimbus");
 
       return toRet;
@@ -301,12 +280,11 @@ class Util {
 	           buildCommandPrefix("$JAVA_HOME", conf, backtype.storm.Config.SUPERVISOR_CHILDOPTS);
       toRet.add("-Dworker.logdir="+ ApplicationConstants.LOG_DIR_EXPANSION_VAR);
       toRet.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/supervisor.log");
-      toRet.add("-Daccess.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/access.log");
-      toRet.add("-Dmetrics.logfile.name=" + System.getenv("STORM_LOG_DIR") + "/metrics.log");
       toRet.add("backtype.storm.daemon.supervisor");
+
       return toRet;
   }
-  
+
   private static String buildClassPathArgument() throws IOException {
       List<String> paths = new ArrayList<String>();
       paths.add(new File(STORM_CONF_PATH_STRING).getParent());
