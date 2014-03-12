@@ -139,6 +139,27 @@ class Util {
     }
   }
 
+  static void writeStormConf(FileSystem fs, Map stormConf, Path dest) 
+          throws IOException {
+      //storm.yaml
+      FSDataOutputStream out = fs.create(dest);
+      Yaml yaml = new Yaml();
+      OutputStreamWriter writer = new OutputStreamWriter(out);
+      rmNulls(stormConf);
+      yaml.dump(stormConf, writer);
+      writer.close();
+      out.close();
+  }
+  
+  static void writeYarnConf(FileSystem fs, YarnConfiguration yarnConf, Path dest) 
+          throws IOException {
+      FSDataOutputStream  out = fs.create(dest);
+      OutputStreamWriter writer = new OutputStreamWriter(out);
+      yarnConf.writeXml(writer);
+      writer.close();
+      out.close();
+  }
+  
   @SuppressWarnings("rawtypes")
   static Path createConfigurationFileInFs(FileSystem fs,
           String appHome, Map stormConf, YarnConfiguration yarnConf) 
@@ -150,25 +171,15 @@ class Util {
     fs.mkdirs(dirDst);
     
     //storm.yaml
-    FSDataOutputStream out = fs.create(confDst);
-    Yaml yaml = new Yaml();
-    OutputStreamWriter writer = new OutputStreamWriter(out);
-    rmNulls(stormConf);
-    yaml.dump(stormConf, writer);
-    writer.close();
-    out.close();
-
+    writeStormConf(fs, stormConf, confDst);
+    
     //yarn-site.xml
     Path yarn_site_xml = new Path(dirDst, "yarn-site.xml");
-    out = fs.create(yarn_site_xml);
-    writer = new OutputStreamWriter(out);
-    yarnConf.writeXml(writer);
-    writer.close();
-    out.close();
-
+    writeYarnConf(fs, yarnConf, yarn_site_xml);
+    
     //logback.xml
     Path logback_xml = new Path(dirDst, "logback.xml");
-    out = fs.create(logback_xml);
+    FSDataOutputStream out = fs.create(logback_xml);
     CreateLogbackXML(out);
     out.close();
 
