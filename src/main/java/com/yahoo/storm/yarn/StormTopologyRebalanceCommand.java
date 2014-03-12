@@ -20,7 +20,7 @@ class StormTopologyRebalanceCommand extends StormCommand {
 
   @Override
   public String getHeaderDescription() {
-    return "storm-yarn rebalance -appId=<application id> -w=wait-time-secs -n=new-num-workers -e=component:parallelism,component:parallelism... topology-name";
+    return "storm-yarn rebalance -appId=<app Id> topology-name [-w wait-time-secs] [-n new-num-workers] [-e component=parallelism]*]";
   }
 
   @Override
