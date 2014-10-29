@@ -95,7 +95,7 @@ public class MasterServer extends ThriftServer {
               
               if (completedContainers.size() > 0 && client.supervisorsAreToRun()) {
                 LOG.debug("HB: Containers completed (" + completedContainers.size() + "), so releasing them.");
-                client.startAllSupervisors();
+                client.addSupervisors(completedContainers.size());
               }
             
             }
