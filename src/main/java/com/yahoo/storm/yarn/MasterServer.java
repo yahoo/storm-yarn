@@ -19,6 +19,7 @@ package com.yahoo.storm.yarn;
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.BlockingQueue;
@@ -28,6 +29,11 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.Options;
 import org.apache.hadoop.service.Service;
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.net.NetUtils;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
 import org.apache.hadoop.yarn.api.protocolrecords.AllocateResponse;
@@ -113,6 +119,40 @@ public class MasterServer extends ThriftServer {
       return thread;
     }
 
+    private static void prepareStormConfig(Map stormConfig,
+            ServerSocketFactory socketFactory) throws IOException {
+        try {
+            String host_addr = InetAddress.getLocalHost().getHostAddress();
+            LOG.info("Storm master host:" + host_addr);
+            stormConfig.put("nimbus.host", host_addr);
+        } catch (UnknownHostException ex) {
+            LOG.warn("Failed to get IP address of local host");
+            throw ex;
+        }
+
+        stormConfig.put("nimbus.thrift.port", socketFactory.create()
+                .getLocalPort());
+        stormConfig.put("ui.port", socketFactory.create().getLocalPort());
+        stormConfig.put("drpc.port", socketFactory.create().getLocalPort());
+        stormConfig.put("drpc.invocations.port", socketFactory.create()
+                .getLocalPort());
+        
+        stormConfig.put(Config.MASTER_THRIFT_PORT, socketFactory.create()
+                .getLocalPort());
+        
+        //update the conf/storm.yaml
+        FileSystem fs = FileSystem.getLocal(new Configuration());
+        Path stormYaml = new Path("conf" + Path.SEPARATOR + "storm.yaml");
+        
+        if (fs.exists(stormYaml)) {
+            LOG.info("storm.yaml exists");
+            FsPermission permission = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
+            fs.setPermission(stormYaml, permission);
+        }
+
+        Util.writeStormConf(fs, stormConfig, stormYaml);
+    }
+    
     @SuppressWarnings("unchecked")
     public static void main(String[] args) throws Exception {
         LOG.info("Starting the AM!!!!");
@@ -144,9 +184,11 @@ public class MasterServer extends ThriftServer {
 
         YarnConfiguration hadoopConf = new YarnConfiguration();
 
-        final String host = InetAddress.getLocalHost().getHostName();
-        storm_conf.put("nimbus.host", host);
-
+        ServerSocketFactory socketFactory = new ServerSocketFactory(true);
+        
+        LOG.info("Prepare Storm config....");
+        prepareStormConfig(storm_conf, socketFactory);
+        
         StormAMRMClient rmClient =
                 new StormAMRMClient(appAttemptID, storm_conf, hadoopConf);
         rmClient.init(hadoopConf);
@@ -154,17 +196,22 @@ public class MasterServer extends ThriftServer {
 
         BlockingQueue<Container> launcherQueue = new LinkedBlockingQueue<Container>();
 
-        MasterServer server = new MasterServer(storm_conf, rmClient);
+        MasterServer server = null;
         try {
-            final int port = Utils.getInt(storm_conf.get(Config.MASTER_THRIFT_PORT));
-            final String target = host + ":" + port;
+            final Integer masterPort = (Integer) storm_conf.get(Config.MASTER_THRIFT_PORT);
+            final String target = storm_conf.get("nimbus.host") + ":" + masterPort;
             InetSocketAddress addr = NetUtils.createSocketAddr(target);
             RegisterApplicationMasterResponse resp =
-                    rmClient.registerApplicationMaster(addr.getHostName(), port, null);
+                    rmClient.registerApplicationMaster(addr.getHostName(), masterPort, null);
             LOG.info("Got a registration response "+resp);
             LOG.info("Max Capability "+resp.getMaximumResourceCapability());
             rmClient.setMaxResource(resp.getMaximumResourceCapability());
             LOG.info("Starting HB thread");
+            
+            //Free the master port so that it can be used by Master Thrift Service
+            socketFactory.free(masterPort);
+            
+            server = new MasterServer(storm_conf, rmClient);
             server.initAndStartHeartbeat(rmClient, launcherQueue,
                     (Integer) storm_conf
                     .get(Config.MASTER_HEARTBEAT_INTERVAL_MILLIS));
@@ -177,7 +224,7 @@ public class MasterServer extends ThriftServer {
             rmClient.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED,
                     "AllDone", null);
         } finally {
-            if (server.isServing()) {
+            if (null != server && server.isServing()) {
                 LOG.info("Stop Master Thrift Server");
                 server.stop();
             }

@@ -101,8 +101,12 @@ public class Client {
     public void execute(String[] args) throws Exception {
         HashMap<String, ClientCommand> commands = new HashMap<String, ClientCommand>();
         HelpCommand help = new HelpCommand(commands);
+        
         commands.put("help", help);
+        commands.put("version", new VersionCommand());
+        commands.put("classpath", new ClassPathCommand());
         commands.put("launch", new LaunchCommand());
+        
         commands.put("setStormConfig", new StormMasterCommand(StormMasterCommand.COMMAND.SET_STORM_CONFIG));
         commands.put("getStormConfig", new StormMasterCommand(StormMasterCommand.COMMAND.GET_STORM_CONFIG));
         commands.put("addSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.ADD_SUPERVISORS));
@@ -113,7 +117,13 @@ public class Client {
         commands.put("startSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.START_SUPERVISORS));
         commands.put("stopSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.STOP_SUPERVISORS));
         commands.put("shutdown", new StormMasterCommand(StormMasterCommand.COMMAND.SHUTDOWN));
-        commands.put("version", new VersionCommand());
+        
+        commands.put("jar", new StormTopologySubmitCommand());
+        commands.put("kill", new StormTopologyKillCommand());
+        commands.put("list", new StormTopologyListCommand());
+        commands.put("rebalance", new StormTopologyRebalanceCommand());
+        commands.put("activate", new StormTopologyActivateCommand());
+        commands.put("deactivate", new StormTopologyDeactivateCommand());
         
         String commandName = null;
         String[] commandArgs = null;
@@ -134,7 +144,7 @@ public class Client {
         if(!opts.hasOption("h")) {
             opts.addOption("h", "help", false, "print out a help message");
         }
-        CommandLine cl = new GnuParser().parse(command.getOpts(), commandArgs);
+        CommandLine cl = new GnuParser().parse(command.getOpts(), commandArgs, true);
         if(cl.hasOption("help")) {
             help.printHelpFor(Arrays.asList(commandName));
         } else {
