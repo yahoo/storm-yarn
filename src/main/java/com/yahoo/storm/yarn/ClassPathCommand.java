@@ -18,9 +18,9 @@ import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import com.yahoo.storm.yarn.Client.ClientCommand;
 
-class VersionCommand implements ClientCommand {
+class ClassPathCommand implements ClientCommand {
   
-  VersionCommand() {
+  ClassPathCommand() {
   }
 
   @Override
@@ -31,12 +31,12 @@ class VersionCommand implements ClientCommand {
   
   @Override
   public String getHeaderDescription() {
-    return "storm-yarn version";
+    return "storm-yarn classpath";
   }
 
   @Override
   public void process(CommandLine cl) throws Exception {
-    Version version = Util.getStormVersion();
-    System.out.println(version.toString());
+    String classpath = System.getProperty("java.class.path");
+    System.out.println(classpath);
   }
 }

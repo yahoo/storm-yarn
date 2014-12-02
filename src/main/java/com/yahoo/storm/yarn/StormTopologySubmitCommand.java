@@ -15,28 +15,16 @@
 package com.yahoo.storm.yarn;
 
 import org.apache.commons.cli.CommandLine;
-import org.apache.commons.cli.Options;
-import com.yahoo.storm.yarn.Client.ClientCommand;
 
-class VersionCommand implements ClientCommand {
-  
-  VersionCommand() {
-  }
+class StormTopologySubmitCommand extends StormCommand {
 
-  @Override
-  public Options getOpts() {
-    Options opts = new Options();
-    return opts;
-  }
-  
   @Override
   public String getHeaderDescription() {
-    return "storm-yarn version";
+    return "storm-yarn jar -appId=xx jarPath MainClass arg0 arg1 arg2";
   }
 
   @Override
   public void process(CommandLine cl) throws Exception {
-    Version version = Util.getStormVersion();
-    System.out.println(version.toString());
+    process("jar", cl);
   }
 }
