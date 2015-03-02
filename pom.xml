@@ -62,25 +62,13 @@
         </repository>    
     </repositories>
     <properties>
-        <storm.version>0.9.0-wip21</storm.version>
-        <hadoop.version>2.1.0-beta</hadoop.version>
-        <!--hadoop.version>2.1.0.2.0.5.0-67</hadoop.version-->
+        <storm.version>0.9.3</storm.version>
+        <hadoop.version>2.5.0</hadoop.version>
     </properties>
     <dependencies>
         <dependency>
-            <groupId>storm</groupId>
+            <groupId>org.apache.storm</groupId>
             <artifactId>storm-core</artifactId>
-            <version>${storm.version}</version>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.slf4j</groupId>
-                    <artifactId>log4j-over-slf4j</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>storm</groupId>
-            <artifactId>storm-netty</artifactId>
             <version>${storm.version}</version>
             <exclusions>
                 <exclusion>
@@ -132,7 +120,7 @@
         <dependency>
             <groupId>org.apache.zookeeper</groupId>
             <artifactId>zookeeper</artifactId>
-            <version>3.3.3</version>
+            <version>3.4.5</version>
             <scope>test</scope>
         </dependency>
         <dependency>
