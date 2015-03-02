@@ -57,8 +57,13 @@ class StormMasterCommand implements ClientCommand {
         //TODO can we make this required
         opts.addOption("appId", true, "(Required) The storm clusters app ID");
 
-        opts.addOption("output", true, "Output file");
-        opts.addOption("supervisors", true, "(Required for addSupervisors) The # of supervisors to be added");
+        if(cmd == COMMAND.GET_STORM_CONFIG){
+        	opts.addOption("output", true, "Output file");        	
+        }
+        
+        if(cmd == COMMAND.ADD_SUPERVISORS){
+        	opts.addOption("supervisors", true, "(Required) The number of supervisors to be added");
+        }
         return opts;
     }
     
