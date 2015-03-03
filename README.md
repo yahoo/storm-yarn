@@ -26,6 +26,7 @@ in progress.
 * Robert Evans ([@revans2](https://github.com/revans2))
 * Derek Dagit ([@d2r](https://github.com/d2r))
 * Nathan Roberts ([@ynroberts](https://github.com/ynroberts))
+* Xin Wang ([@vesense](https://github.com/vesense))
 
 ## Mailing list
 
