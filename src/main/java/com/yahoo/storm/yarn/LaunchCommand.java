@@ -17,6 +17,7 @@
 package com.yahoo.storm.yarn;
 
 import java.io.PrintStream;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.cli.CommandLine;
@@ -31,6 +32,11 @@ class LaunchCommand implements ClientCommand {
   private static final Logger LOG = LoggerFactory.getLogger(LaunchCommand.class);
 
   @Override
+  public String getHeaderDescription() {
+    return "storm-yarn launch <master.yaml>";
+  }
+  
+  @Override
   public Options getOpts() {
     Options opts = new Options();
     opts.addOption("appname", true, "Application Name. Default value - Storm-on-Yarn");
@@ -43,7 +49,15 @@ class LaunchCommand implements ClientCommand {
   }
 
   @Override
-  public void process(CommandLine cl, @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
+  public void process(CommandLine cl) throws Exception {
+    
+    String config_file = null;
+    List remaining_args = cl.getArgList();
+    if (remaining_args!=null && !remaining_args.isEmpty()) {
+        config_file = (String)remaining_args.get(0);
+    }
+    Map stormConf = Config.readStormConfig(config_file);
+    
     String appName = cl.getOptionValue("appname", "Storm-on-Yarn");
     String queue = cl.getOptionValue("queue", "default");
 

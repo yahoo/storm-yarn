@@ -17,6 +17,7 @@
 package com.yahoo.storm.yarn;
 
 import java.io.FileWriter;
+import java.util.List;
 import java.util.Map;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
@@ -60,17 +61,28 @@ class StormMasterCommand implements ClientCommand {
         opts.addOption("supervisors", true, "(Required for addSupervisors) The # of supervisors to be added");
         return opts;
     }
+    
+    @Override
+    public String getHeaderDescription() {
+      return null;
+    }
 
     @Override
-    public void process(CommandLine cl,
-            @SuppressWarnings("rawtypes") Map stormConf) throws Exception {
+    public void process(CommandLine cl) throws Exception {
+      
+        String config_file = null;
+        List remaining_args = cl.getArgList();
+        if (remaining_args!=null && !remaining_args.isEmpty()) {
+            config_file = (String)remaining_args.get(0);
+        }
+        Map stormConf = Config.readStormConfig(null);
+      
         String appId = cl.getOptionValue("appId");
         if(appId == null) {
             throw new IllegalArgumentException("-appId is required");
         }
 
         StormOnYarn storm = null;
-        String conf_str = null;
         try {
             storm = StormOnYarn.attachToApp(appId, stormConf);
             StormMaster.Client client = storm.getClient();
