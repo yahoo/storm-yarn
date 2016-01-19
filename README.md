@@ -113,7 +113,7 @@ For a full list of storm-yarn commands and options you can run
 
 ## Known Issues:
 
-The is no failover when nimbus goes down. Still working on it.
+There is no failover when nimbus goes down. Still working on it.
 
 There is no simple way to get to the logs for the different processes.
 
