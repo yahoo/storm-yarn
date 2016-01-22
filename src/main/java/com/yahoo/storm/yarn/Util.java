@@ -272,7 +272,7 @@ class Util {
       List<String> toRet =
               buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
 
-      toRet.add("-Dworker.logdir="+ ApplicationConstants.LOG_DIR_EXPANSION_VAR);
+      toRet.add("-Dstorm.log.dir="+ ApplicationConstants.LOG_DIR_EXPANSION_VAR);
       toRet.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/supervisor.log");
       toRet.add("backtype.storm.daemon.supervisor");
 
