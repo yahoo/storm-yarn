@@ -62,7 +62,7 @@
         </repository>    
     </repositories>
     <properties>
-        <storm.version>0.9.3</storm.version>
+        <storm.version>0.9.6</storm.version>
         <hadoop.version>2.6.0</hadoop.version>
     </properties>
     <dependencies>
