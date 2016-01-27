@@ -238,7 +238,14 @@ class Util {
 
       if (conf.containsKey(childOptsKey)
               && conf.get(childOptsKey) != null) {
-          toRet.add((String) conf.get(childOptsKey));
+          
+          String javaOption = (String) conf.get(childOptsKey);
+          String [] options = javaOption.split("\\s");
+          if (null != options && options.length > 0) {
+              for (String option : options) {
+                  toRet.add(option);
+              }
+          }
       }
 
       return toRet;
