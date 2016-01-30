@@ -238,7 +238,10 @@ class Util {
 
       if (conf.containsKey(childOptsKey)
               && conf.get(childOptsKey) != null) {
-          toRet.add((String) conf.get(childOptsKey));
+          String childOptsStr = (String) conf.get(childOptsKey);
+          for (String str : childOptsStr.trim().replaceAll("\\s+", ",").split(",")) {
+               toRet.add(str);
+          }
       }
 
       return toRet;
