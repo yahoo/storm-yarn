@@ -263,6 +263,9 @@ public class StormOnYarn {
           vargs.add(env.get("JAVA_HOME") + "/bin/java");
         else
           vargs.add("java");
+        if (null != _stormConf.get("master.childopts")) {
+          vargs.add((String) _stormConf.get("master.childopts"));
+        }
         vargs.add("-Dstorm.home=./storm/" + stormHomeInZip + "/");
         vargs.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/master.log");
         //vargs.add("-verbose:class");
