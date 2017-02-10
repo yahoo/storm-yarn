@@ -15,6 +15,6 @@
 #
 rm -rf gen-javabean 
 rm -rf java/com/yahoo/storm/yarn/generated
-thrift7 --gen java:beans,hashcode,nocamel storm_master.thrift
+thrift --gen java:beans,hashcode,nocamel storm_master.thrift
 mv gen-javabean/com/yahoo/storm/yarn/generated java/com/yahoo/storm/yarn/generated
 rm -rf gen-javabean

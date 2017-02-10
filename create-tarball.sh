@@ -53,7 +53,7 @@ function exitIfError() {
 }
 
 function printHDFSInstructions() {
-    local readonly HDFSPath='/lib/storm/0.9.0'
+    local readonly HDFSPath='/lib/storm/1.0.1'
     cat <<HDFS_NOTICE
 To deploy the to HDFS, do something like the following:
 

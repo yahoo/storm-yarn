@@ -23,8 +23,9 @@ service StormMaster {
 
   // supervisors
   void addSupervisors(1: i32 number);
-  
-  // start/stop nimber
+  void removeSupervisors(1: string supervisor_host);//tkl
+
+  // start/stop nimbus
   void startNimbus();
   void stopNimbus();
 

@@ -15,20 +15,20 @@
  */
 package com.yahoo.storm.yarn;
 
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
+import org.apache.zookeeper.server.NIOServerCnxnFactory;
+import org.apache.zookeeper.server.ZooKeeperServer;
+
 import java.io.File;
 import java.io.IOException;
 import java.net.BindException;
 import java.net.InetSocketAddress;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
-import org.apache.zookeeper.server.NIOServerCnxn.Factory;
-import org.apache.zookeeper.server.ZooKeeperServer;
-
 public class EmbeddedZKServer {
 
     private static final Log LOG = LogFactory.getLog(EmbeddedZKServer.class);
-    private Factory zkFactory;
+    private NIOServerCnxnFactory zkFactory;
     private int zkport;
     
     void start() throws IOException, InterruptedException {
@@ -38,7 +38,8 @@ public class EmbeddedZKServer {
         zkServer = new ZooKeeperServer(localfile, localfile, 2000);
         for (zkport = 60000; true; zkport++)
             try {
-                zkFactory = new Factory(new InetSocketAddress(zkport));
+                zkFactory = new NIOServerCnxnFactory();
+                zkFactory.configure(new InetSocketAddress(zkport),60);
                 break;
             } catch (BindException e) {
                 if (zkport == 65535) throw new IOException("Fail to find a port for Zookeeper server to bind");

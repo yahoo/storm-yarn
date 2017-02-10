@@ -1,33 +1,13 @@
-/*
- * Copyright (c) 2013 Yahoo! Inc. All Rights Reserved.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- *   http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License. See accompanying LICENSE file.
- */
-
 package com.yahoo.storm.yarn;
-
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.GnuParser;
 import org.apache.commons.cli.HelpFormatter;
 import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.HashMap;
 
 public class Client {
     private static final Logger LOG = LoggerFactory.getLogger(Client.class);
@@ -43,11 +23,10 @@ public class Client {
          * @return header description for this command
          */
         public String getHeaderDescription();
-        
+
         /**
          * Do the processing
          * @param cl the arguments to process
-         * @param stormConf the storm configuration to use
          * @throws Exception on any error
          */
         public void process(CommandLine cl) throws Exception;
@@ -66,9 +45,9 @@ public class Client {
 
         @Override
         public String getHeaderDescription() {
-          return "storm-yarn help";
+            return "storm-yarn help";
         }
-        
+
         @SuppressWarnings("unchecked")
         @Override
         public void process(CommandLine cl) throws Exception {
@@ -92,11 +71,11 @@ public class Client {
             }
         }
     }
-    
+
     /**
      * @param args the command line arguments
-     * @throws Exception  
-     */    
+     * @throws Exception
+     */
     @SuppressWarnings("rawtypes")
     public void execute(String[] args) throws Exception {
         HashMap<String, ClientCommand> commands = new HashMap<String, ClientCommand>();
@@ -114,7 +93,7 @@ public class Client {
         commands.put("stopSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.STOP_SUPERVISORS));
         commands.put("shutdown", new StormMasterCommand(StormMasterCommand.COMMAND.SHUTDOWN));
         commands.put("version", new VersionCommand());
-        
+        commands.put("removeSupervisors", new StormMasterCommand(StormMasterCommand.COMMAND.REMOVE_SUPERVISORS));
         String commandName = null;
         String[] commandArgs = null;
         if (args.length < 1) {
@@ -138,7 +117,7 @@ public class Client {
         if(cl.hasOption("help")) {
             help.printHelpFor(Arrays.asList(commandName));
         } else {
-           
+
             command.process(cl);
         }
     }
@@ -146,5 +125,6 @@ public class Client {
     public static void main(String[] args) throws Exception {
         Client client = new Client();
         client.execute(args);
-    } 
+    }
 }
+

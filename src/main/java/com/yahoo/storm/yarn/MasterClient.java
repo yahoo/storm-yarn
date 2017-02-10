@@ -16,12 +16,12 @@
 
 package com.yahoo.storm.yarn;
 
-import java.util.Map;
-import backtype.storm.security.auth.ThriftClient;
-import backtype.storm.utils.Utils;
-import org.apache.thrift7.transport.TTransportException;
-
 import com.yahoo.storm.yarn.generated.StormMaster;
+import org.apache.storm.security.auth.ThriftClient;
+import org.apache.storm.thrift.transport.TTransportException;
+import org.apache.storm.utils.Utils;
+
+import java.util.Map;
 
 public class MasterClient extends ThriftClient {
     private StormMaster.Client _client;
@@ -45,7 +45,7 @@ public class MasterClient extends ThriftClient {
 
     @SuppressWarnings("rawtypes")
     public MasterClient(Map conf, String host, int port, Integer timeout) throws TTransportException {
-        super(conf, host, port, timeout);
+        super(conf, Config.MASTER_THRIFT_TYPE, host, port, timeout);
         _client = new StormMaster.Client(_protocol);
     }
 

@@ -16,29 +16,31 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.UnknownHostException;
-import java.util.List;
-import java.util.Map;
-
-import org.apache.thrift7.TException;
+import com.yahoo.storm.yarn.generated.StormMaster;
+import org.apache.storm.Config;
+import com.google.common.base.Joiner;
+import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.storm.thrift.TException;
 import org.json.simple.JSONValue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import backtype.storm.Config;
-
-import com.google.common.base.Joiner;
-import com.yahoo.storm.yarn.generated.StormMaster;
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 public class StormMasterServerHandler implements StormMaster.Iface {
     private static final Logger LOG = LoggerFactory.getLogger(StormMasterServerHandler.class);
+
     @SuppressWarnings("rawtypes")
     Map _storm_conf;
     StormAMRMClient _client;
     MasterServer _masterServer;
-    
+
     StormMasterServerHandler(@SuppressWarnings("rawtypes") Map storm_conf, StormAMRMClient client) {
         _storm_conf = storm_conf;
         setStormHostConf();
@@ -64,13 +66,14 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     private void setStormHostConf() {
         try {
             String host_addr = InetAddress.getLocalHost().getHostAddress();
-            LOG.info("Storm master host:"+host_addr);
-            _storm_conf.put(Config.NIMBUS_HOST, host_addr);
+            LOG.info("Storm master host:" + host_addr);
+            _storm_conf.put(Config.NIMBUS_SEEDS, Arrays.asList(new String[]{host_addr}));
+
         } catch (UnknownHostException ex) {
             LOG.warn("Failed to get IP address of local host");
         }
     }
-    
+
     @Override
     public String getStormConf() throws TException {
         LOG.info("getting configuration...");
@@ -88,11 +91,11 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         stopNimbus();
 
         Object json = JSONValue.parse(storm_conf);
-        Map<?, ?> new_conf = (Map<?, ?>)json;
+        Map<?, ?> new_conf = (Map<?, ?>) json;
         _storm_conf.putAll(new_conf);
         Util.rmNulls(_storm_conf);
         setStormHostConf();
-        
+
         // start processes
         startNimbus();
         startUI();
@@ -101,23 +104,29 @@ public class StormMasterServerHandler implements StormMaster.Iface {
 
     @Override
     public void addSupervisors(int number) throws TException {
-        LOG.info("adding "+number+" supervisors...");
+        LOG.info("adding " + number + " supervisors...");
         _client.addSupervisors(number);
+    }
+
+    @Override
+    public void removeSupervisors(String hostname) throws TException {
+        LOG.info("remove supervisors...");
+        _client.removeSupervisors(hostname);
     }
 
     class StormProcess extends Thread {
         Process _process;
         String _name;
 
-        public StormProcess(String name){
+        public StormProcess(String name) {
             _name = name;
         }
 
-        public void run(){
+        public void run() {
             startStormProcess();
             try {
                 _process.waitFor();
-                LOG.info("Storm process "+_name+" stopped");
+                LOG.info("Storm process " + _name + " stopped");
             } catch (InterruptedException e) {
                 LOG.info("Interrupted => will stop the storm process too");
                 _process.destroy();
@@ -129,11 +138,11 @@ public class StormMasterServerHandler implements StormMaster.Iface {
                 LOG.info("Running: " + Joiner.on(" ").join(buildCommands()));
                 ProcessBuilder builder =
                         new ProcessBuilder(buildCommands());
-                
+
                 _process = builder.start();
                 Util.redirectStreamAsync(_process.getInputStream(), System.out);
                 Util.redirectStreamAsync(_process.getErrorStream(), System.err);
-                
+
             } catch (IOException e) {
                 LOG.warn("Error starting nimbus process ", e);
             }
@@ -161,22 +170,22 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     @Override
     public void startNimbus() {
         LOG.info("starting nimbus...");
-        synchronized(this) {
-            if (nimbusProcess!=null && nimbusProcess.isAlive()){
+        synchronized (this) {
+            if (nimbusProcess != null && nimbusProcess.isAlive()) {
                 LOG.info("Received a request to start nimbus, but it is running now");
                 return;
             }
             nimbusProcess = new StormProcess("nimbus");
-            nimbusProcess.start(); 
-        }       
+            nimbusProcess.start();
+        }
     }
 
     @Override
     public void stopNimbus() {
-        synchronized(this) {
+        synchronized (this) {
             if (nimbusProcess == null) return;
             LOG.info("stopping nimbus...");
-            if (!nimbusProcess.isAlive()){
+            if (!nimbusProcess.isAlive()) {
                 LOG.info("Received a request to stop nimbus, but it is not running now");
                 return;
             }
@@ -188,22 +197,22 @@ public class StormMasterServerHandler implements StormMaster.Iface {
     @Override
     public void startUI() throws TException {
         LOG.info("starting UI...");
-        synchronized(this) {
-            if (uiProcess!=null && uiProcess.isAlive()){
+        synchronized (this) {
+            if (uiProcess != null && uiProcess.isAlive()) {
                 LOG.info("Received a request to start UI, but it is running now");
                 return;
             }
             uiProcess = new StormProcess("ui");
             uiProcess.start();
-        } 
+        }
     }
 
     @Override
     public void stopUI() throws TException {
-        synchronized(this) {
+        synchronized (this) {
             if (uiProcess == null) return;
             LOG.info("stopping UI...");
-            if (!uiProcess.isAlive()){
+            if (!uiProcess.isAlive()) {
                 LOG.info("Received a request to stop UI, but it is not running now");
                 return;
             }
@@ -229,4 +238,10 @@ public class StormMasterServerHandler implements StormMaster.Iface {
         LOG.info("shutdown storm master...");
         _masterServer.stop();
     }
+
+    public Set<Container> getContainerInfo(){
+        LOG.info("get all container info...");
+        return _client.getAllContainerInfo();
+    }
+
 }

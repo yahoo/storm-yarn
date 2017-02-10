@@ -14,17 +14,30 @@
 #
 master.host: "localhost"
 master.thrift.port: 9000
+
 master.initial-num-supervisors: 1
 master.container.priority: 0
-master.container.size-mb: 5120
+master.container.size-mb: 4096
 master.heartbeat.interval.millis: 1000
 master.timeout.secs: 1000
 yarn.report.wait.millis: 10000
 nimbusui.startup.ms: 10000
 
+storm.thrift.transport: "org.apache.storm.security.auth.SimpleTransportPlugin"
+nimbus.thrift.port: 6627
+nimbus.queue.size: 100000
+nimbus.thrift.threads: 64
+nimbus.thrift.max_buffer_size: 1048576
+
+drpc.thrift.transport: "org.apache.storm.security.auth.SimpleTransportPlugin"
+drpc.port: 9000
+drpc.queue.size: 128
+drpc.worker.threads: 64
+drpc.max_buffer_size: 1048576
+
 ui.port: 7070
 
-storm.messaging.transport: "backtype.storm.messaging.netty.Context"
+storm.messaging.transport: "org.apache.storm.messaging.netty.Context"
 storm.messaging.netty.buffer_size: 1048576
 storm.messaging.netty.max_retries: 100
 storm.messaging.netty.min_wait_ms: 1000
@@ -33,10 +46,10 @@ storm.messaging.netty.max_wait_ms: 5000
 # Configuration parameter that allows the launching machine to specify the JAVA_JOME
 # used when the application is executed on the YARN cluster.
 #
-# storm.yarn.java_home: "/vol/anarchy/boneill/jdk1.7.0_40"
+#storm.yarn.java_home: "/usr/java/default"
 
 # Configuration parameter that allows the launching machine to specify the yarn classpath
 # used when the application is executed on the YARN cluster.  To find this value, run
 # "yarn classpath" on the target machines.
 #
-# storm.yarn.yarn_classpath: "/home/boneill/hadoop/etc/hadoop:/home/boneill/hadoop/etc/hadoop:/home/boneill/hadoop/etc/hadoop:/home/boneill/hadoop/share/hadoop/common/lib/*:/home/boneill/hadoop/share/hadoop/common/*:/home/boneill/hadoop/share/hadoop/hdfs:/home/boneill/hadoop/share/hadoop/hdfs/lib/*:/home/boneill/hadoop/share/hadoop/hdfs/*:/home/boneill/hadoop/share/hadoop/yarn/lib/*:/home/boneill/hadoop/share/hadoop/yarn/*:/home/boneill/hadoop/share/hadoop/mapreduce/lib/*:/home/boneill/hadoop/share/hadoop/mapreduce/*:/Users/bone/tools/hadoop/contrib/capacity-scheduler/*.jar:/home/boneill/hadoop/share/hadoop/yarn/*:/home/boneill/hadoop/share/hadoop/yarn/lib/*"
+#storm.yarn.yarn_classpath: ""

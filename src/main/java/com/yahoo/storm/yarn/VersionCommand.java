@@ -14,24 +14,15 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.File;
-import java.util.List;
-import java.util.Map;
-
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.base.Joiner;
-import com.google.common.io.Files;
-import com.yahoo.storm.yarn.Client.ClientCommand;
-import com.yahoo.storm.yarn.generated.StormMaster;
+class VersionCommand implements Client.ClientCommand {
+  private static final Logger LOG = LoggerFactory.getLogger(StormMasterCommand.class);
 
-class VersionCommand implements ClientCommand {
-  private static final Logger LOG = LoggerFactory
-      .getLogger(StormMasterCommand.class);
-  
   VersionCommand() {
   }
 

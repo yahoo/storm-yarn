@@ -16,19 +16,17 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.PrintStream;
-import java.util.List;
-import java.util.Map;
-
+import com.yahoo.storm.yarn.generated.StormMaster;
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.Options;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.yahoo.storm.yarn.Client.ClientCommand;
-import com.yahoo.storm.yarn.generated.StormMaster;
+import java.io.PrintStream;
+import java.util.List;
+import java.util.Map;
 
-class LaunchCommand implements ClientCommand {
+class LaunchCommand implements Client.ClientCommand {
   private static final Logger LOG = LoggerFactory.getLogger(LaunchCommand.class);
 
   @Override
