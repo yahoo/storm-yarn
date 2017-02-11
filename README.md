@@ -40,7 +40,15 @@ Please install the following software first:
    
 ## Build
 
-To run the tests,  you execute the following command. 
+Download the source code of storm-on-yarn.
+
+Open the source folder. The folder is the root directory of storm-on-yarn.
+
+Edit pom.xml in storm-on-yarn root directory (suppose to $StormOnYARN) to set the Hadoop version.
+
+![pom.xml](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/editpom.png)
+
+To packaged items ,You execute the following command in  $StormOnYARN.
 
     mvn package
 
@@ -62,12 +70,41 @@ If you want to skip the tests you can run
 
 ## Deploy:
 
-You need to install a version of storm on the hadoop gateway.
+Download the project of storm-1.0.1.
 
-You also need to place a corresponding storm.zip file in HDFS so it can be
-shipped to all of the nodes through the distributed cache at
+Put the project of storm-1.0.1 into same directory(suppose to $STORM_HOME) as the $StormOnYARN.
 
-/lib/storm/&lt;storm-version&gt;/storm.zip
+![stormHome](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/stormhome.png)
+
+Add storm-1.0.1/bin and $StormOnYARN/bin to your PATH environment variable.
+
+![environment1](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment.png)
+
+![environment2](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment2.png)
+
+You shall put the dependencies of your job into $StormOnYARN/bin.
+
+You need to install a version of storm on the hadoop gateway.You also need to place a corresponding storm.zip file in HDFS so it can be shipped to all of the nodes through the distributed cache at /lib/storm/&lt;storm-version&gt;/storm.zip
+
+For example:
+
+    zip -r storm.zip storm-1.0.1
+    hadoop fs -put storm.zip /lib/storm/1.0.1/
+
+There are two ways to configure the storm-on-yarn:
+
+a)    Edit storm.yaml that under storm-1.0.1/conf.
+
+b)    Copy the $StormOnYARN/src/main/master_defaults.yaml to storm-1.0.1/lib and rename it to master.yaml. And you can edit it to configuration.
+
+The simplest, you only need to add zookeeper cluster information. If you want to use Docker container executor or remote deployment. You also need to config storm.yarn.java_home and storm.yarn.yarn_classpath to set right JAVA_HOME and classpath.
+
+For example:
+      using a) method:
+
+![Configuration](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/config.png)
+
+Note: zookeeper as a sparate service, don`t need to deloy on yarn.
 
 Storm-YARN is now configured to use Netty for communication between spouts and bolts.
 It's pure JVM based, and thus OS independent.
@@ -112,6 +149,26 @@ the following command to submit a topology
 For a full list of storm-yarn commands and options you can run
 
     storm-yarn help
+
+## Commands:
+
+    launch: launch storm on yarn.
+    help: get help.
+    version: view storm version.
+    addSupervisors/removeSupervisor: add or remove supervisor.
+    getStormConfig: get storm configuration.
+    startNimbus/stopNimbus: start or stop Nimbus. 
+    startUI/stopUI: start or stop Web UI.
+    startSupervisors/stopSupervisor: start or stop all supervisors. 
+    shutdown：shutdown storm cluster.
+ 
+##  Arguments：
+
+    -appname <arg>    （only for storm-yarn launch ）Application Name. Default value – Storm-on-Yarn
+    -appId <arg>      (Required) The storm clusters app ID
+    -output <arg>      Output file
+    -supervisor <arg>   (Required for removeSupervisors) the supervisor to be remove
+    -supervisors <arg>    (Required for addSupervisors) The # of supervisors to be added
 
 ## Known Issues:
 
