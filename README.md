@@ -16,9 +16,7 @@
 
 storm-yarn
 =================
-Storm-yarn enables Storm clusters to be deployed into machines managed by Hadoop YARN.  It is still a work
-in progress.
-
+Storm-yarn enables Storm clusters to be deployed into machines managed by Hadoop YARN. It is still a work in progress.
 
 ## Contributors
 
@@ -32,23 +30,39 @@ in progress.
 
 Feel free to ask questions on storm-yarn's mailing list: http://groups.google.com/group/storm-yarn
 
-## Prerequisite
+## New Features:
 
-Please install the following software first:
-   * Java 8
-   * Maven 3
-   
-## Build
+Based on the project developed by yahoo, we have added following new features.
 
-Download the source code of storm-on-yarn.
+1. We have updated the version of storm from 0.9.0 to 1.0.1.
 
-Open the source folder. The folder is the root directory of storm-on-yarn.
+2. We have added StormClusterChecker class, and this class is able to monitor the storm cluster. It can adjust the number of supervisor based on usage of system resources.
 
-Edit pom.xml in storm-on-yarn root directory (suppose to $StormOnYARN) to set the Hadoop version.
+3. We have added the function of removeSupervisors in order to monitor resources. Its function be opposite to addSupervisors.
+
+4. We have updated the logging framework from logback to log4j2.
+
+## How to install and use
+
+Before starting, please make sure you have Hadoop YARN running.
+
+Besides, The storm-on-yarn implementation does not include running Zookeeper on YARN. You need to make sure you have available Zookeeper service. 
+
+When you finish the work above, you can beginning to detailed installation and use.
+
+The detailed installation including download, build, deployment and running.
+
+### Download and build
+
+Please install the Java 8 and Maven 3 first. These two software are necessary to complied and packaged source code of storm-on-yarn.
+
+You can download the source code of storm-on-yarn or use the command ``git clone <link> `` to get the source code.
+
+After you download the source code, you need edit pom.xml in storm-on-yarn root directory to set the Hadoop version.
 
 ![pom.xml](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/editpom.png)
 
-To packaged items ,You execute the following command in  $StormOnYARN.
+To packaged items ,You execute the following command in storm-on-yarn root directory.
 
     mvn package
 
@@ -68,66 +82,66 @@ If you want to skip the tests you can run
 
     mvn package -DskipTests
 
-## Deploy:
+### Deploy:
 
-Download the project of storm-1.0.1.
+After you build the whole project of storm-on-yarn, you need install storm-on-yarn and Storm on the Storm Client machine.
 
-Put the project of storm-1.0.1 into same directory(suppose to $STORM_HOME) as the $StormOnYARN.
+Storm Client machine refers to the machine that will submit the YARN application to RM.
+
+You need copy packaged storm-on-yarn project to Storm Client machine, downloading the project of [storm-1.0.1](http://www.apache.org/dyn/closer.lua/storm/apache-storm-1.0.1/apache-storm-1.0.1.tar.gz). and put the decompressed project of storm-1.0.1 into same directory as the storm-on-yarn root directory.
+
+As shown below,
 
 ![stormHome](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/stormhome.png)
 
-Add storm-1.0.1/bin and $StormOnYARN/bin to your PATH environment variable.
+You do not need to start running the Storm cluster, as this will be done by running storm-on-yarn later on.
 
-![environment1](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment.png)
+When executing storm-on-yarn commands, the commands “storm-yarn”, “storm”, etc. will be called. Therefore, all paths to the bin files containing these executable commands must be included to the PATH environment variable.
 
-![environment2](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment2.png)
+Hence you add storm-1.0.1/bin and $(storm-on-yarn root directory)/bin to your PATH environment variable.
 
-You shall put the dependencies of your job into $StormOnYARN/bin.
+![environment](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment.png)
 
-You need to install a version of storm on the hadoop gateway.You also need to place a corresponding storm.zip file in HDFS so it can be shipped to all of the nodes through the distributed cache at /lib/storm/&lt;storm-version&gt;/storm.zip
+Storm-on-yarn will deploy a copy of Storm code throughout all the nodes of the YARN cluster using HDFS. However, the location of where to fetch this copy of the Storm code is hard-coded into the Storm-on-YARN client. Therefore,  you will have to manually prepare the copy inside HDFS.
 
-For example:
+The storm.zip copy needs to be stored in “/lib/storm/<storm version>/storm.zip” path in HDFS. 
 
+Besides, you shall put the dependencies of your job into $(storm-on-yarn root directory)/lib.
+
+After you finish the work above, you can use the following commands to copy the storm.zip from the local directory to “/lib/storm/1.0.1” in HDFS.
+
+    hadoop fs -mkdir /lib 
+    hadoop fs -mkdir /lib/storm
+    hadoop fs -mkdir /lib/storm/1.0.1
     zip -r storm.zip storm-1.0.1
     hadoop fs -put storm.zip /lib/storm/1.0.1/
 
-There are two ways to configure the storm-on-yarn:
+### Run:
+
+Everything should be ready. You can start to run the storm-on-yarn project.
+
+The storm-yarn command provides a way to launch a storm cluster. In the future
+it is intended to also provide ways to manage the cluster.
+
+To launch a cluster you can run
+
+    storm-yarn launch <storm-yarn-configuration>
+
+storm-yarn-configuration (a yaml file) will be used to launch a Storm cluster.
+
+In this project, we provide two quick ways to create the storm-yarn-configuration file:
 
 a)    Edit storm.yaml that under storm-1.0.1/conf.
 
-b)    Copy the $StormOnYARN/src/main/master_defaults.yaml to storm-1.0.1/lib and rename it to master.yaml. And you can edit it to configuration.
+b)    Copy the $(storm-on-yarn root directory)/src/main/master_defaults.yaml to storm-1.0.1/conf and rename it to master.yaml. And you can edit it to configuration.
 
-The simplest, you only need to add zookeeper cluster information. If you want to use Docker container executor or remote deployment. You also need to config storm.yarn.java_home and storm.yarn.yarn_classpath to set right JAVA_HOME and classpath.
+The simplest, you only need to add zookeeper cluster information.
 
 For example:
       using a) method:
 
 ![Configuration](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/config.png)
 
-Note: zookeeper as a sparate service, don`t need to deloy on yarn.
-
-Storm-YARN is now configured to use Netty for communication between spouts and bolts.
-It's pure JVM based, and thus OS independent.
-
-If you are running storm using zeromq (instead of Netty), you need to augment the standard
-storm.zip file the needed .so files. This can be done with the not ideally
-named create-tarball.sh script
-
-    create-tarball.sh storm.zip
-
-Ideally the storm.zip file is a world readable file installed by ops so there is
-only one copy in the distributed cache ever.
-
-## Run:
-
-The yarn-storm command provides a way to launch a storm cluster.  In the future
-it is intended to also provide ways to manage the cluster.
-
-To launch a cluster you can run
-
-    storm-yarn launch <storm-yarn-config>
-
-storm-yarn-configuration (a yaml file) will be used to launch a Storm cluster.
 storm-yarn has a number of new config options to configure the storm AM.
    * master.initial-num-supervisors is the number of supervisors to launch with storm.
    * master.container.size-mb is the size of the container to request.
@@ -140,9 +154,7 @@ To obtain a storm.yaml from the newly launch Storm master, you can run
 
 storm.yaml will be retrieved from Storm master.  
 
-After storing the above storm.yaml in Storm classpath (ex. ~/.storm/storm.yaml), you will 
-invoke standard Storm commands against the Storm cluster on YARN. For example, you run 
-the following command to submit a topology
+After storing the above storm.yaml in Storm classpath (ex. ~/.storm/storm.yaml), you will invoke standard Storm commands against the Storm cluster on YARN. For example, you run the following command to submit a topology
 
     storm jar <appJar>
 
@@ -150,41 +162,44 @@ For a full list of storm-yarn commands and options you can run
 
     storm-yarn help
 
+Note:storm-on-yarn is now configured to use Netty for communication between spouts and bolts.
+
+It's pure JVM based, and thus OS independent.
+
+If you are running storm using zeromq (instead of Netty), you need to augment the standard storm.zip file the needed .so files. This can be done with the not ideally named create-tarball.sh script
+
+    create-tarball.sh storm.zip
+
+Ideally the storm.zip file is a world readable file installed by ops so there is
+only one copy in the distributed cache ever.
+
 ## Commands:
 
-    launch: launch storm on yarn.
-    help: get help.
-    version: view storm version.
-    addSupervisors/removeSupervisor: add or remove supervisor.
-    getStormConfig: get storm configuration.
-    startNimbus/stopNimbus: start or stop Nimbus. 
-    startUI/stopUI: start or stop Web UI.
-    startSupervisors/stopSupervisor: start or stop all supervisors. 
-    shutdown：shutdown storm cluster.
- 
+| Command     | Function|
+| --------    | ------  |
+| launch      | launch storm on yarn|
+| help        | get help|
+| version     | view storm version|
+| addSupervisors/removeSupervisor       | add/remove supervisor|
+| startNimbus/stopNimbus    | start/stop Nimbus|
+| startUI/stopUI        | start/stop Web UI|
+| startSupervisors/stopSupervisor   | start or stop all supervisors|
+| shutdown    | shutdown storm cluster|
 ##  Arguments：
 
-    -appname <arg>    （only for storm-yarn launch ）Application Name. Default value – Storm-on-Yarn
-    -appId <arg>      (Required) The storm clusters app ID
-    -output <arg>      Output file
-    -supervisor <arg>   (Required for removeSupervisors) the supervisor to be remove
-    -supervisors <arg>    (Required for addSupervisors) The # of supervisors to be added
+| Argument     | Function|
+| --------    | ------  |
+| -appname <arg>      | (Only for storm-yarn launch)Application Name.Default value – Storm-on-Yarn|
+| -appId <arg>        | (Required) The storm clusters app ID|
+| -output <arg>     | Output file|
+| -supervisor <arg>       | (Required for removeSupervisors) the supervisor to be removed|
+| -supervisors <arg>    | (Required for addSupervisors) The # of supervisors to be added|
 
 ## Known Issues:
 
 There is no failover when nimbus goes down. Still working on it.
 
 There is no simple way to get to the logs for the different processes.
-
-## New Features:
-
-The version of storm update to 1.0.1.
-
-The StormClusterChecker class is is able to monitor the storm cluster. And it can adjust the number of supervisor based on usage of system resources.
-
-In order to monitor resources, we add the function of removeSupervisors. Its function be opposite to addSupervisors.
-
-From the logback logging framework to log4j2.
 
 ## License
 
