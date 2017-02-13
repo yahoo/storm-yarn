@@ -56,7 +56,7 @@ Based on the project developed by yahoo, we have added following new features.
 
 2. Edit pom.xml in storm-on-yarn root directory to set the Hadoop version.
 
-![pom.xml](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/editpom.png)
+  ![pom.xml](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/editpom.png)
 
 3. To package items, please execute the following command under storm-on-yarn root directory.
 
@@ -89,7 +89,7 @@ Please refer to the following  guide, step by step to deploy on the Storm Clien
 
   ![stormHome](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/stormhome.png)
 
-So far, you have put storm-on-yarn and storm in the right place on Storm Client machine. You do not need to start running the Storm cluster, as this will be done by running storm-on-yarn later on.
+  So far, you have put storm-on-yarn and storm in the right place on Storm Client machine. You do not need to start running the Storm cluster, as this will be done by running storm-on-yarn later on.
 
 2. When executing storm-on-yarn commands, commands like "storm-yarn", "storm" and etc., will be frequently called. Therefore, all paths to the bin files containing these executable commands must be included to the PATH environment variable.
 
