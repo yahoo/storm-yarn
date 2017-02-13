@@ -97,7 +97,7 @@ Please refer to the following  guide, step by step to deploy on the Storm Clien
 
   ![environment](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment.png)
 
-3. Storm-on-yarn will duplicate a copy of Storm code throughout all the nodes of the YARN cluster using HDFS. However, the location of where to fetch such copy is hard-coded into the Storm-on-YARN client. Therefore, you will have to manually prepare the copy inside HDFS.                                           
+3. Storm-on-yarn will replicate a copy of Storm code throughout all the nodes of the YARN cluster using HDFS. However, the location of where to fetch such copy is hard-coded into the Storm-on-YARN client. Therefore, you will have to manually prepare the copy inside HDFS.                                           
   The storm.zip file (the copy of Storm code) can be stored in HDFS under path "/lib/storm/[storm version]/storm.zip".
   
   Following commands illustrate how to upload the storm.zip from the local directory to "/lib/storm/1.0.1" in HDFS.
@@ -108,7 +108,7 @@ Please refer to the following  guide, step by step to deploy on the Storm Clien
       zip -r storm.zip storm-1.0.1
       hadoop fs -put storm.zip /lib/storm/1.0.1/
 
-So far, we completed the deployment.
+At this point, the deployment step is complete.
 
 ### Run:
 
