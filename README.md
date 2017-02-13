@@ -58,66 +58,65 @@ Based on the project developed by yahoo, we have added following new features.
 
 ![pom.xml](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/editpom.png)
 
-To package items, please execute the following command under storm-on-yarn root directory.
+3. To package items, please execute the following command under storm-on-yarn root directory.
 
-    mvn package
+       mvn package
 
-You will see the following execution messages.
-<pre><code>17:57:27.810 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn launch ./conf/storm.yaml --stormZip lib/storm.zip --appname storm-on-yarn-test --output target/appId.txt
-17:57:59.681 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn getStormConfig ./conf/storm.yaml --appId application_1372121842369_0001 --output ./lib/storm/storm.yaml
-17:58:04.382 [main] INFO  com.yahoo.storm.yarn.TestIntegration - ./lib/storm/bin/storm jar lib/storm-starter-0.0.1-SNAPSHOT.jar storm.starter.ExclamationTopology exclamation-topology
-17:58:04.382 [main] INFO  com.yahoo.storm.yarn.TestIntegration - ./lib/storm/bin/storm kill exclamation-topology
-17:58:07.798 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopNimbus ./conf/storm.yaml --appId application_1372121842369_0001
-17:58:10.131 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startNimbus ./conf/storm.yaml --appId application_1372121842369_0001
-17:58:12.460 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopUI ./conf/storm.yaml --appId application_1372121842369_0001
-17:58:15.045 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startUI ./conf/storm.yaml --appId application_1372121842369_0001
-17:58:17.390 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn shutdown ./conf/storm.yaml --appId application_1372121842369_0001
-</code></pre>
+  You will see the following execution messages.
+  <pre><code>17:57:27.810 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn launch ./conf/storm.yaml --stormZip lib/storm.zip --appname storm-on-yarn-test --output target/appId.txt
+  17:57:59.681 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn getStormConfig ./conf/storm.yaml --appId application_1372121842369_0001 --output ./lib/storm/storm.yaml
+  17:58:04.382 [main] INFO  com.yahoo.storm.yarn.TestIntegration - ./lib/storm/bin/storm jar lib/storm-starter-0.0.1-SNAPSHOT.jar storm.starter.ExclamationTopology exclamation-topology
+  17:58:04.382 [main] INFO  com.yahoo.storm.yarn.TestIntegration - ./lib/storm/bin/storm kill exclamation-topology
+  17:58:07.798 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopNimbus ./conf/storm.yaml --appId application_1372121842369_0001
+  17:58:10.131 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startNimbus ./conf/storm.yaml --appId application_1372121842369_0001
+  17:58:12.460 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn stopUI ./conf/storm.yaml --appId application_1372121842369_0001
+  17:58:15.045 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn startUI ./conf/storm.yaml --appId application_1372121842369_0001
+  17:58:17.390 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn shutdown ./conf/storm.yaml --appId application_1372121842369_0001
+  </code></pre>
 
-If you want to skip the tests, please add ``-DskipTests ``.
+  If you want to skip the tests, please add ``-DskipTests ``.
 
-    mvn package -DskipTests
+       mvn package -DskipTests
 
 ### Deploy:
 
 After compiling and building the whole project of storm-on-yarn, next you need to install storm-on-yarn and Storm on the Storm Client machine, which is used for submitting the YARN applications to YARN ResourceManager (RM) later.
 
-You need to copy the packaged storm-on-yarn project to Storm Client machine, downloading the project of [storm-1.0.1](http://www.apache.org/dyn/closer.lua/storm/apache-storm-1.0.1/apache-storm-1.0.1.tar.gz). and put the decompressed project of storm-1.0.1 into same directory as the storm-on-yarn root directory.
+Please refer to the following  guide, step by step to deploy on the Storm Client machine.
 
-As shown below,
+1. Copy the packaged storm-on-yarn project to Storm Client machine, downloading the project of [storm-1.0.1](http://www.apache.org/dyn/closer.lua/storm/apache-storm-1.0.1/apache-storm-1.0.1.tar.gz). and put the decompressed project of storm-1.0.1 into same directory as the storm-on-yarn project.
+  As shown below,
 
-![stormHome](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/stormhome.png)
+  ![stormHome](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/stormhome.png)
 
-You do not need to start running the Storm cluster, as this will be done by running storm-on-yarn later on.
+So far, you have put storm-on-yarn and storm in the right place on Storm Client machine. You do not need to start running the Storm cluster, as this will be done by running storm-on-yarn later on.
 
-When executing storm-on-yarn commands, commands like "storm-yarn", "storm" and etc., will be frequently called. Therefore, all paths to the bin files containing these executable commands must be included to the PATH environment variable.
+2. When executing storm-on-yarn commands, commands like "storm-yarn", "storm" and etc., will be frequently called. Therefore, all paths to the bin files containing these executable commands must be included to the PATH environment variable.
 
-Hence you are suggested to add storm-1.0.1/bin and $(storm-on-yarn root directory)/bin to your PATH environment variable, like this:
+  Hence you are suggested to add storm-1.0.1/bin and $(storm-on-yarn root directory)/bin to your PATH environment variable, like this:
 
-![environment](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment.png)
+  ![environment](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment.png)
 
-Storm-on-yarn will duplicate a copy of Storm code throughout all the nodes of the YARN cluster using HDFS. However, the location of where to fetch such copy is hard-coded into the Storm-on-YARN client. Therefore,  you will have to manually prepare the copy inside HDFS. For example: 
+3. Storm-on-yarn will duplicate a copy of Storm code throughout all the nodes of the YARN cluster using HDFS. However, the location of where to fetch such copy is hard-coded into the Storm-on-YARN client. Therefore, you will have to manually prepare the copy inside HDFS. 
+  The storm.zip file (the copy of Storm code) can be stored in HDFS under path "/lib/storm/[storm version]/storm.zip".
+  
+  Following commands illustrate how to upload the storm.zip from the local directory to "/lib/storm/1.0.1" in HDFS.
 
-The storm.zip file (the copy of Storm code) can be stored in HDFS under path "/lib/storm/<storm version>/storm.zip".
+      hadoop fs -mkdir /lib 
+      hadoop fs -mkdir /lib/storm
+      hadoop fs -mkdir /lib/storm/1.0.1
+      zip -r storm.zip storm-1.0.1
+      hadoop fs -put storm.zip /lib/storm/1.0.1/
 
-Besides, you shall put the dependencies of your job into $(storm-on-yarn root directory)/lib.
-
-Following commands illustrate how to upload the storm.zip from the local directory to "/lib/storm/1.0.1" in HDFS.
-
-    hadoop fs -mkdir /lib 
-    hadoop fs -mkdir /lib/storm
-    hadoop fs -mkdir /lib/storm/1.0.1
-    zip -r storm.zip storm-1.0.1
-    hadoop fs -put storm.zip /lib/storm/1.0.1/
+So far, we completed the deployment.
 
 ### Run:
 
 Everything should be ready. Now you can start your storm-on-yarn project.
 
-The storm-yarn command provides a way to launch a storm cluster. In the future
-it is intended to also provide ways to manage the cluster.
+The storm-on-yarn project have a set of specify commands and it use **storm-yarn [command] -[arg] xxx** as the comman format.
 
-To launch a cluster you can run
+To launch the cluster you can run
 
     storm-yarn launch <storm-yarn-configuration>
 
@@ -125,17 +124,29 @@ To launch a cluster you can run
 
 In this project, we provide two quick ways to create the storm-yarn-configuration file:
 
-a)    Edit the storm.yaml file under storm-1.0.1/conf folder
+    a) Edit the storm.yaml file under storm-1.0.1/conf folder
 
-b)    Copy the $(storm-on-yarn root directory)/src/main/master_defaults.yaml to storm-1.0.1/conf and rename it to master.yaml, and then edit it where necessary.
+    b) Copy the $(storm-on-yarn root directory)/src/main/master_defaults.yaml to storm-1.0.1/conf and rename it to master.yaml, and then edit it where necessary.
 
 In the simplest case, the only configuration you need to add is the Zookeeper cluster information:
 
 ![Configuration](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/config.png)
 
+When you execute the above command, the Hadoop YARN will return a application ID, if you deploy completely right. just like this:
+
+![applicationid](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/applicationid.png)
+
+And, you can see the graphic below on YARN UI and Storm UI respectively.
+
+![yarnui](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/yarnui.png)
+
+![stormui](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/stormui.png)
+
+### Other details:
+
 storm-yarn has a number of new options for configuring the storm ApplicationManager (AM), e.g., 
-   * master.initial-num-supervisors, which stands for the initial number of supervisors to launch with storm.
-   * master.container.size-mb, which stands for the size of the containers to request (from the YARN RM).
+    * master.initial-num-supervisors, which stands for the initial number of supervisors to launch with storm.
+    * master.container.size-mb, which stands for the size of the containers to request (from the YARN RM).
 
 The procedure of "storm-yarn launch" returns an Application ID, which uniquely identifies the newly launched Storm master. This Application ID will be used for accessing the Storm master.
 
@@ -168,14 +179,15 @@ only one copy in the distributed cache ever.
 
 | Command     | Usage |
 | --------    | ------  |
-| launch      | launch storm on yarn|
-| help        | get help|
-| version     | view storm version|
-| addSupervisors/removeSupervisor       | add/remove supervisor|
-| startNimbus/stopNimbus    | start/stop Nimbus|
-| startUI/stopUI        | start/stop Web UI|
-| startSupervisors/stopSupervisor   | start or stop all supervisors|
-| shutdown    | shutdown storm cluster|
+|storm-yarn launch      | launch storm on yarn|
+|storm-yarn help        | get help|
+|storm-yarn version     | view storm version|
+|storm-yarn addSupervisors/removeSupervisor       | add/remove supervisor|
+|storm-yarn startNimbus/stopNimbus    | start/stop Nimbus|
+|storm-yarn startUI/stopUI        | start/stop Web UI|
+|storm-yarn startSupervisors/stopSupervisor   | start or stop all supervisors|
+|storm-yarn shutdown    | shutdown storm cluster|
+
 ##  Arguments：
 
 | Argument     | Usage|
