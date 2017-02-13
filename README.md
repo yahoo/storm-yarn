@@ -59,8 +59,8 @@ Based on the project developed by yahoo, we have added following new features.
   ![pom.xml](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/editpom.png)
 
 3. To package items, please execute the following command under storm-on-yarn root directory.
-
-       mvn package
+       
+        mvn package
 
   You will see the following execution messages.
   <pre><code>17:57:27.810 [main] INFO  com.yahoo.storm.yarn.TestIntegration - bin/storm-yarn launch ./conf/storm.yaml --stormZip lib/storm.zip --appname storm-on-yarn-test --output target/appId.txt
@@ -97,7 +97,7 @@ Please refer to the following  guide, step by step to deploy on the Storm Clien
 
   ![environment](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment.png)
 
-3. Storm-on-yarn will duplicate a copy of Storm code throughout all the nodes of the YARN cluster using HDFS. However, the location of where to fetch such copy is hard-coded into the Storm-on-YARN client. Therefore, you will have to manually prepare the copy inside HDFS. 
+3. Storm-on-yarn will duplicate a copy of Storm code throughout all the nodes of the YARN cluster using HDFS. However, the location of where to fetch such copy is hard-coded into the Storm-on-YARN client. Therefore, you will have to manually prepare the copy inside HDFS.                                           
   The storm.zip file (the copy of Storm code) can be stored in HDFS under path "/lib/storm/[storm version]/storm.zip".
   
   Following commands illustrate how to upload the storm.zip from the local directory to "/lib/storm/1.0.1" in HDFS.
@@ -118,9 +118,9 @@ The storm-on-yarn project have a set of specify commands and it use **storm-yarn
 
 To launch the cluster you can run
 
-    storm-yarn launch <storm-yarn-configuration>
+    storm-yarn launch [storm-yarn-configuration]
 
-<storm-yarn-configuration>, which is usually a .yaml file, including all the required configurations during the launch of the Storm cluster.
+[storm-yarn-configuration], which is usually a .yaml file, including all the required configurations during the launch of the Storm cluster.
 
 In this project, we provide two quick ways to create the storm-yarn-configuration file:
 
@@ -128,11 +128,11 @@ In this project, we provide two quick ways to create the storm-yarn-configuratio
 
     b) Copy the $(storm-on-yarn root directory)/src/main/master_defaults.yaml to storm-1.0.1/conf and rename it to master.yaml, and then edit it where necessary.
 
-In the simplest case, the only configuration you need to add is the Zookeeper cluster information:
+In the simplest case, the only configuration you need to add is the Zookeeper cluster information and set the port of supervisor:
 
 ![Configuration](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/config.png)
 
-When you execute the above command, the Hadoop YARN will return a application ID, if you deploy completely right. just like this:
+When you  write a right configure file and execute the command above, the Hadoop YARN will return a application ID, if you deploy completely right. like this:
 
 ![applicationid](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/applicationid.png)
 
@@ -142,38 +142,44 @@ And, you can see the graphic below on YARN UI and Storm UI respectively.
 
 ![stormui](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/stormui.png)
 
+So far, the storm-on-yarn has run and you can submit topology.
+
+You can run the following command to submit a topology.
+
+      storm jar ***.jar topologyName <arg> -c nimbus=
+
+For example :
+        
+      storm jar ~/WordCount2/testWord-1.0-SNAPSHOT.jar storm.topology.WordCountTopology wordcount -c nimbus=192.168.1.25
+
+
 ### Other details:
 
-storm-yarn has a number of new options for configuring the storm ApplicationManager (AM), e.g., 
+1. storm-yarn has a number of new options for configuring the storm ApplicationManager (AM), e.g., 
     * master.initial-num-supervisors, which stands for the initial number of supervisors to launch with storm.
     * master.container.size-mb, which stands for the size of the containers to request (from the YARN RM).
 
-The procedure of "storm-yarn launch" returns an Application ID, which uniquely identifies the newly launched Storm master. This Application ID will be used for accessing the Storm master.
+2. The procedure of "storm-yarn launch" returns an Application ID, which uniquely identifies the newly launched Storm master. This Application ID will be used for accessing the Storm master.
 
-To obtain a storm.yaml from the newly launch Storm master, you can run
+  To obtain a storm.yaml from the newly launch Storm master, you can run
 
-    storm-yarn getStormConfig <storm-yarn-config> --appId <Application-ID> --output <storm.yaml>
+      storm-yarn getStormConfig <storm-yarn-config> --appId <Application-ID> --output <storm.yaml>
 
-storm.yaml will be retrieved from Storm master.  
+ storm.yaml will be retrieved from Storm master.  
 
-After storing the above storm.yaml in Storm classpath (ex. ~/.storm/storm.yaml), you will invoke standard Storm commands against the Storm cluster on YARN. For example, you run the following command to submit a topology
+3. For a full list of storm-yarn commands and options you can run
 
-    storm jar <appJar>
+        storm-yarn help
 
-For a full list of storm-yarn commands and options you can run
+4. Storm-on-yarn is now configured to use Netty for communication between spouts and bolts.
 
-    storm-yarn help
+  It's pure JVM based, and thus OS independent.
 
-Note:storm-on-yarn is now configured to use Netty for communication between spouts and bolts.
+  If you are running storm using zeromq (instead of Netty), you need to augment the standard storm.zip file the needed .so files. This can be done with the not ideally named create-tarball.sh script
 
-It's pure JVM based, and thus OS independent.
+      create-tarball.sh storm.zip
 
-If you are running storm using zeromq (instead of Netty), you need to augment the standard storm.zip file the needed .so files. This can be done with the not ideally named create-tarball.sh script
-
-    create-tarball.sh storm.zip
-
-Ideally the storm.zip file is a world readable file installed by ops so there is
-only one copy in the distributed cache ever.
+5. Ideally the storm.zip file is a world readable file installed by ops so there is only one copy in the distributed cache ever.
 
 ## Commands:
 
