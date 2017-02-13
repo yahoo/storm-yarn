@@ -44,17 +44,17 @@ Based on the project developed by yahoo, we have added following new features.
 
 ## How to install and use
 ### Prerequisite
-Please install Java 8 and Maven 3 first. These two software are necessary to compiling and packaging the source code of storm-on-yarn.
+* Install Java 8 and Maven 3 first. These two software are necessary to compiling and packaging the source code of storm-on-yarn.
 
-Before starting, please make sure [Hadoop YARN](https://hadoop.apache.org/docs/r2.7.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) have been properly launched. 
+* Make sure [Hadoop YARN](https://hadoop.apache.org/docs/r2.7.2/hadoop-project-dist/hadoop-common/ClusterSetup.html) have been properly launched. 
 
-Besides, The storm-on-yarn implementation does not include running Zookeeper on YARN. Please make sure the Zookeeper service is independently launched beforehands.
+* The storm-on-yarn implementation does not include running Zookeeper on YARN. Make sure the Zookeeper service is independently launched beforehands.
 
 ### Download and build
 
-You can download the source code of storm-on-yarn or use the command ``git clone <link> `` to get the source code.
+1. Download the source code of storm-on-yarn, e.g., execute the command ``git clone <link> `` to get the source code.
 
-After you download the source code, you need to edit pom.xml in storm-on-yarn root directory to set the Hadoop version.
+2. Edit pom.xml in storm-on-yarn root directory to set the Hadoop version.
 
 ![pom.xml](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/editpom.png)
 
@@ -96,7 +96,7 @@ Hence you are suggested to add storm-1.0.1/bin and $(storm-on-yarn root director
 
 ![environment](https://github.com/wendyshusband/storm-yarn/blob/storm-1.0.1/image/environment.png)
 
-Storm-on-yarn will deplicate a copy of Storm code throughout all the nodes of the YARN cluster using HDFS. However, the location of where to fetch such copy is hard-coded into the Storm-on-YARN client. Therefore,  you will have to manually prepare the copy inside HDFS. For example: 
+Storm-on-yarn will duplicate a copy of Storm code throughout all the nodes of the YARN cluster using HDFS. However, the location of where to fetch such copy is hard-coded into the Storm-on-YARN client. Therefore,  you will have to manually prepare the copy inside HDFS. For example: 
 
 The storm.zip file (the copy of Storm code) can be stored in HDFS under path "/lib/storm/<storm version>/storm.zip".
 
