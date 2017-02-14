@@ -245,7 +245,7 @@ class StormAMRMClient extends AMRMClientImpl<ContainerRequest> {
     }
 
     public synchronized void removeSupervisors(String hostname) {
-            LOG.info("removing container id: " + hostname + this.supervisorsAreToRun);
+        LOG.info("removing container id: " + hostname + this.supervisorsAreToRun);
         if (this.supervisorsAreToRun) {
             LOG.debug("remove the needless supervisors, stop the container...");
             releaseSupervisorsRequest(hostname);

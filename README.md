@@ -201,7 +201,7 @@ For example :
 | -appname <arg>      | (Only for storm-yarn launch) Application Name. Default value – "Storm-on-Yarn" |
 | -appId <arg>        | (Required) The storm clusters app ID|
 | -output <arg>     | Output file|
-| -supervisor <arg>       | (Required for removeSupervisors) the supervisor to be removed|
+| -container <arg>       | (Required for removeSupervisors) the supervisor to be removed|
 | -supervisors <arg>    | (Required for addSupervisors) The # of supervisors to be added|
 
 ## Known Issues:

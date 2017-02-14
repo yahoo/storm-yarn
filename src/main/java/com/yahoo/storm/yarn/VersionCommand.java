@@ -31,7 +31,7 @@ class VersionCommand implements Client.ClientCommand {
     Options opts = new Options();
     return opts;
   }
-  
+
   @Override
   public String getHeaderDescription() {
     return "storm-yarn version";

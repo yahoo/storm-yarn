@@ -39,12 +39,12 @@ public class Config {
     //# of milliseconds to wait for YARN report on Storm Master host/port
     final public static String YARN_REPORT_WAIT_MILLIS = "yarn.report.wait.millis";
     final public static String MASTER_HEARTBEAT_INTERVAL_MILLIS = "master.heartbeat.interval.millis";
-    
+
     @SuppressWarnings("rawtypes")
     static public Map readStormConfig() {
         return readStormConfig(null);
     }
-    
+
     @SuppressWarnings({ "rawtypes", "unchecked" })
     static Map readStormConfig(String stormYarnConfigPath) {
         //default configurations
@@ -62,7 +62,7 @@ public class Config {
         }
         ret.putAll(storm_conf);
 
-        //configuration file per command parameter 
+        //configuration file per command parameter
         if (stormYarnConfigPath == null) {
             Map master_conf = Utils.findAndReadConfigFile(Config.MASTER_CONFIG, false);
             ret.putAll(master_conf);

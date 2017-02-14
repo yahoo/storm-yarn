@@ -32,12 +32,12 @@ public class MasterClient extends ThriftClient {
             String masterHost = (String) conf.get(Config.MASTER_HOST);
             int masterPort = Utils.getInt(conf.get(Config.MASTER_THRIFT_PORT));
             try {
-            	Integer timeout = Utils.getInt(conf.get(Config.MASTER_TIMEOUT_SECS));
-            	return new MasterClient(conf, masterHost, masterPort, timeout);
+                Integer timeout = Utils.getInt(conf.get(Config.MASTER_TIMEOUT_SECS));
+                return new MasterClient(conf, masterHost, masterPort, timeout);
             } catch (IllegalArgumentException e) {
-            	return new MasterClient(conf, masterHost, masterPort, null);
+                return new MasterClient(conf, masterHost, masterPort, null);
             }
-            
+
         } catch (TTransportException ex) {
             throw new RuntimeException(ex);
         }

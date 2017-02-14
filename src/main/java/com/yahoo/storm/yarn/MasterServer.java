@@ -178,7 +178,7 @@ public class MasterServer extends ThriftServer {
                 server.stop();
             }
             LOG.info("Stop RM client");
-            rmClient.stop(); 
+            rmClient.stop();
         }
         System.exit(0);
     }
