@@ -16,25 +16,23 @@
 
 package com.yahoo.storm.yarn;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.Socket;
-import java.net.UnknownHostException;
-import java.util.Map;
-
+import com.yahoo.storm.yarn.generated.StormMaster;
 import junit.framework.Assert;
-
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.mockito.Mockito.mock;
+import java.io.File;
+import java.io.IOException;
+import java.net.Socket;
+import java.net.URL;
+import java.net.URLConnection;
+import java.net.UnknownHostException;
+import java.util.Map;
 
-import com.yahoo.storm.yarn.generated.StormMaster;
+import static org.mockito.Mockito.mock;
 
 public class TestStormCluster {
     static final Logger LOG = LoggerFactory.getLogger(TestStormCluster.class);
@@ -61,7 +59,7 @@ public class TestStormCluster {
 
         //simple configuration
         final Map storm_conf = Config.readStormConfig("src/main/resources/master_defaults.yaml");
-        storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
+        storm_conf.put(org.apache.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
         storm_conf_file = testConf.createConfigFile(storm_conf);
         
         confirmNothingIsRunning(storm_conf);
@@ -122,7 +120,7 @@ public class TestStormCluster {
         // Try to open a TCP connection to the nimbus port.
         new Socket((String) storm_conf.get(Config.MASTER_HOST),
                 (Integer) storm_conf
-                        .get(backtype.storm.Config.NIMBUS_THRIFT_PORT))
+                        .get(org.apache.storm.Config.NIMBUS_THRIFT_PORT))
                 .close();
     }
 
@@ -132,7 +130,7 @@ public class TestStormCluster {
         // Try to open a TCP connection to the zookeeper ports
         new Socket("localhost", 
                 (Integer) storm_conf
-                    .get(backtype.storm.Config.STORM_ZOOKEEPER_PORT))
+                    .get(org.apache.storm.Config.STORM_ZOOKEEPER_PORT))
                 .close();
     }
 
@@ -141,7 +139,7 @@ public class TestStormCluster {
         // Try to open a TCP connection to the UI port.
         new Socket((String) storm_conf.get(Config.MASTER_HOST),
                 (Integer) storm_conf
-                        .get(backtype.storm.Config.UI_PORT))
+                        .get(org.apache.storm.Config.UI_PORT))
                 .close();
         
     }
