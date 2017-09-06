@@ -215,3 +215,5 @@ There is no simple way to get to the logs for the different processes.
 The use and distribution terms for this software are covered by the
 Apache License, Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0.html).
 
+## Acknowledgement
+This work was partially supported by SingAREN/AWS Cloud Credit for Research Program 2016.
