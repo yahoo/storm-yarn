@@ -16,36 +16,9 @@
 
 package com.yahoo.storm.yarn;
 
-import java.net.URL;
-
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileReader;
-import java.io.IOException;
-import java.io.PrintStream;
-
-import java.io.OutputStreamWriter;
-
-import java.util.ArrayList;
-import java.util.Enumeration;
-import java.util.Iterator;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Scanner;
-import java.util.Set;
-import java.util.jar.JarEntry;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-
-import org.apache.hadoop.fs.FSDataOutputStream;
-import org.apache.hadoop.fs.FSDataInputStream;
-import org.apache.hadoop.fs.FileStatus;
+import com.google.common.base.Joiner;
+import org.apache.hadoop.fs.*;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.yarn.api.ApplicationConstants;
@@ -57,242 +30,251 @@ import org.apache.hadoop.yarn.util.ConverterUtils;
 import org.apache.hadoop.yarn.util.Records;
 import org.yaml.snakeyaml.Yaml;
 
-import com.google.common.base.Joiner;
+import java.io.*;
+import java.net.InetAddress;
+import java.net.URL;
+import java.util.*;
+import java.util.jar.JarEntry;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
 
 class Util {
-  private static final String STORM_CONF_PATH_STRING = "conf" + Path.SEPARATOR + "storm.yaml";
+    private static final String STORM_CONF_PATH_STRING = "conf" + Path.SEPARATOR + "storm.yaml";
 
-  static String getStormHome() {
-      String ret = System.getProperty("storm.home");
-      if (ret == null) {
-        throw new RuntimeException("storm.home is not set");
-      }
-      return ret;
-  }
-
-  @SuppressWarnings("rawtypes")
-  static Version getStormVersion() throws IOException {
-
-    String versionNumber = "Unknown";
-    File releaseFile = new File(getStormHome(), "RELEASE");
-    if (releaseFile.exists()) {
-      BufferedReader reader = new BufferedReader(new FileReader(releaseFile));
-      try {
-        versionNumber = reader.readLine().trim();
-      } finally {
-        reader.close();
-      }
-    }
-    
-    File buildFile = new File(getStormHome(), "BUILD");
-    String buildNumber = null;
-    if (buildFile.exists()) {
-      BufferedReader reader = new BufferedReader(new FileReader(buildFile));
-      try {
-        buildNumber = reader.readLine().trim();
-      } finally {
-        reader.close();
-      }
-    }
-    
-    Version version = new Version(versionNumber, buildNumber);
-    return version;
-  }
-
-  static String getStormHomeInZip(FileSystem fs, Path zip, String stormVersion) throws IOException, RuntimeException {
-    FSDataInputStream fsInputStream = fs.open(zip);
-    ZipInputStream zipInputStream = new ZipInputStream(fsInputStream);
-    ZipEntry entry = zipInputStream.getNextEntry();
-    while (entry != null) {
-      String entryName = entry.getName();
-      if (entryName.matches("^(apache-)?storm(-" + stormVersion + ")?/")) {
-        fsInputStream.close();
-        return entryName.replace("/", "");
-      }
-      entry = zipInputStream.getNextEntry();
-    }
-    fsInputStream.close();
-    throw new RuntimeException("Can not find storm home entry in storm zip file.");
-  }
-
-  static LocalResource newYarnAppResource(FileSystem fs, Path path,
-      LocalResourceType type, LocalResourceVisibility vis) throws IOException {
-    Path qualified = fs.makeQualified(path);
-    FileStatus status = fs.getFileStatus(qualified);
-    LocalResource resource = Records.newRecord(LocalResource.class);
-    resource.setType(type);
-    resource.setVisibility(vis);
-    resource.setResource(ConverterUtils.getYarnUrlFromPath(qualified)); 
-    resource.setTimestamp(status.getModificationTime());
-    resource.setSize(status.getLen());
-    return resource;
-  }
-
-  @SuppressWarnings("rawtypes")
-  static void rmNulls(Map map) {
-    Set s = map.entrySet();
-    Iterator it = s.iterator();
-    while (it.hasNext()) {
-      Map.Entry m =(Map.Entry)it.next();
-      if (m.getValue() == null) 
-        it.remove();
-    }
-  }
-
-  @SuppressWarnings("rawtypes")
-  static Path createConfigurationFileInFs(FileSystem fs,
-          String appHome, Map stormConf, YarnConfiguration yarnConf) 
-          throws IOException {
-    // dump stringwriter's content into FS conf/storm.yaml
-    Path confDst = new Path(fs.getHomeDirectory(),
-            appHome + Path.SEPARATOR + STORM_CONF_PATH_STRING);
-    Path dirDst = confDst.getParent();
-    fs.mkdirs(dirDst);
-    
-    //storm.yaml
-    FSDataOutputStream out = fs.create(confDst);
-    Yaml yaml = new Yaml();
-    OutputStreamWriter writer = new OutputStreamWriter(out);
-    rmNulls(stormConf);
-    yaml.dump(stormConf, writer);
-    writer.close();
-    out.close();
-
-    //yarn-site.xml
-    Path yarn_site_xml = new Path(dirDst, "yarn-site.xml");
-    out = fs.create(yarn_site_xml);
-    writer = new OutputStreamWriter(out);
-    yarnConf.writeXml(writer);
-    writer.close();
-    out.close();
-
-    //logback.xml
-    Path logback_xml = new Path(dirDst, "logback.xml");
-    out = fs.create(logback_xml);
-    CreateLogbackXML(out);
-    out.close();
-
-    return dirDst;
-  } 
-
-  static LocalResource newYarnAppResource(FileSystem fs, Path path)
-      throws IOException {
-    return Util.newYarnAppResource(fs, path, LocalResourceType.FILE,
-        LocalResourceVisibility.APPLICATION);
-  }
-
-  private static void CreateLogbackXML(OutputStream out) throws IOException {
-    Enumeration<URL> logback_xml_urls;
-    logback_xml_urls = Thread.currentThread().getContextClassLoader().getResources("logback.xml");
-    while (logback_xml_urls.hasMoreElements()) {
-      URL logback_xml_url = logback_xml_urls.nextElement();
-      if (logback_xml_url.getProtocol().equals("file")) {
-        //Case 1: logback.xml as simple file
-        FileInputStream is = new FileInputStream(logback_xml_url.getPath());
-        while (is.available() > 0) {
-          out.write(is.read());
+    static String getStormHome() {
+        String ret = System.getProperty("storm.home");
+        if (ret == null) {
+            throw new RuntimeException("storm.home is not set");
         }
-        is.close();
-        return;
-      }
-      if (logback_xml_url.getProtocol().equals("jar")) {
-        //Case 2: logback.xml included in a JAR
-        String path = logback_xml_url.getPath();
-        String jarFile = path.substring("file:".length(), path.indexOf("!"));
-        java.util.jar.JarFile jar = new java.util.jar.JarFile(jarFile);
-        Enumeration<JarEntry> enums = jar.entries();
-        while (enums.hasMoreElements()) {
-          java.util.jar.JarEntry file = enums.nextElement();
-          if (!file.isDirectory() && file.getName().equals("logback.xml")) {
-            InputStream is = jar.getInputStream(file); // get the input stream
-            while (is.available() > 0) {
-              out.write(is.read());
+        return ret;
+    }
+
+    @SuppressWarnings("rawtypes")
+    static Version getStormVersion() throws IOException {
+
+        String versionNumber = "Unknown";
+        File releaseFile = new File(getStormHome(), "RELEASE");
+        if (releaseFile.exists()) {
+            BufferedReader reader = new BufferedReader(new FileReader(releaseFile));
+            try {
+                versionNumber = reader.readLine().trim();
+            } finally {
+                reader.close();
             }
-            is.close();
-            jar.close();
-            return;
-          }
         }
-        jar.close();
-      }
+
+        File buildFile = new File(getStormHome(), "BUILD");
+        String buildNumber = null;
+        if (buildFile.exists()) {
+            BufferedReader reader = new BufferedReader(new FileReader(buildFile));
+            try {
+                buildNumber = reader.readLine().trim();
+            } finally {
+                reader.close();
+            }
+        }
+
+        Version version = new Version(versionNumber, buildNumber);
+        return version;
     }
 
-    throw new IOException("Failed to locate a logback.xml");
-  }
+    static String getStormHomeInZip(FileSystem fs, Path zip, String stormVersion) throws IOException, RuntimeException {
+        FSDataInputStream fsInputStream = fs.open(zip);
+        ZipInputStream zipInputStream = new ZipInputStream(fsInputStream);
+        ZipEntry entry = zipInputStream.getNextEntry();
+        while (entry != null) {
+            String entryName = entry.getName();
+            if (entryName.matches("^storm(-" + stormVersion + ")?/")) {
+                fsInputStream.close();
+                return entryName.replace("/", "");
+            }
+            entry = zipInputStream.getNextEntry();
+        }
+        fsInputStream.close();
+        throw new RuntimeException("Can not find storm home entry in storm zip file.");
+    }
 
-  @SuppressWarnings("rawtypes")
-  private static List<String> buildCommandPrefix(Map conf, String childOptsKey) 
-          throws IOException {
-      String stormHomePath = getStormHome();
-      List<String> toRet = new ArrayList<String>();
-      if (System.getenv("JAVA_HOME") != null)
-        toRet.add(System.getenv("JAVA_HOME") + "/bin/java");
-      else
-        toRet.add("java");
-      toRet.add("-server");
-      toRet.add("-Dstorm.home=" + stormHomePath);
-      toRet.add("-Djava.library.path=" + conf.get(backtype.storm.Config.JAVA_LIBRARY_PATH));
-      toRet.add("-Dstorm.conf.file=" + new File(STORM_CONF_PATH_STRING).getName());
-      toRet.add("-cp");
-      toRet.add(buildClassPathArgument());
+    static LocalResource newYarnAppResource(FileSystem fs, Path path,
+                                            LocalResourceType type, LocalResourceVisibility vis) throws IOException {
+        Path qualified = fs.makeQualified(path);
+        FileStatus status = fs.getFileStatus(qualified);
+        LocalResource resource = Records.newRecord(LocalResource.class);
+        resource.setType(type);
+        resource.setVisibility(vis);
+        resource.setResource(ConverterUtils.getYarnUrlFromPath(qualified));
+        resource.setTimestamp(status.getModificationTime());
+        resource.setSize(status.getLen());
+        return resource;
+    }
 
-      if (conf.containsKey(childOptsKey)
-              && conf.get(childOptsKey) != null) {
-          toRet.add((String) conf.get(childOptsKey));
-      }
+    @SuppressWarnings("rawtypes")
+    static void rmNulls(Map map) {
+        Set s = map.entrySet();
+        Iterator it = s.iterator();
+        while (it.hasNext()) {
+            Map.Entry m =(Map.Entry)it.next();
+            if (m.getValue() == null)
+                it.remove();
+        }
+    }
 
-      return toRet;
-  }
+    @SuppressWarnings("rawtypes")
+    static Path createConfigurationFileInFs(FileSystem fs,
+                                            String appHome, Map stormConf, YarnConfiguration yarnConf)
+            throws IOException {
+        // dump stringwriter's content into FS conf/storm.yaml
+        Path confDst = new Path(fs.getHomeDirectory(),
+                appHome + Path.SEPARATOR + STORM_CONF_PATH_STRING);
+        Path dirDst = confDst.getParent();
+        fs.mkdirs(dirDst);
 
-  @SuppressWarnings("rawtypes")
-  static List<String> buildUICommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.UI_CHILDOPTS);
+        //storm.yaml
+        FSDataOutputStream out = fs.create(confDst);
+        Yaml yaml = new Yaml();
+        OutputStreamWriter writer = new OutputStreamWriter(out);
+        rmNulls(stormConf);
+        yaml.dump(stormConf, writer);
+        writer.close();
+        out.close();
 
-      toRet.add("-Dstorm.options=" + backtype.storm.Config.NIMBUS_HOST + "=localhost");
-      toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/ui.log");
-      toRet.add("backtype.storm.ui.core");
+        //yarn-site.xml
+        Path yarn_site_xml = new Path(dirDst, "yarn-site.xml");
+        out = fs.create(yarn_site_xml);
+        writer = new OutputStreamWriter(out);
+        yarnConf.writeXml(writer);
+        writer.close();
+        out.close();
 
-      return toRet;
-  }
+        //log4j2.xml
+        Path log4j2_xml = new Path(dirDst, "log4j2.xml");
+        out = fs.create(log4j2_xml);
+        CreateLog4j2XML(out);
+        out.close();
 
-  @SuppressWarnings("rawtypes")
-  static List<String> buildNimbusCommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+        return dirDst;
+    }
 
-      toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/nimbus.log");
-      toRet.add("backtype.storm.daemon.nimbus");
+    static LocalResource newYarnAppResource(FileSystem fs, Path path)
+            throws IOException {
+        return Util.newYarnAppResource(fs, path, LocalResourceType.FILE,
+                LocalResourceVisibility.APPLICATION);
+    }
 
-      return toRet;
-  }
+    private static void CreateLog4j2XML(OutputStream out) throws IOException {
+        Enumeration<URL> log4j2_xml_urls;
+        log4j2_xml_urls = Thread.currentThread().getContextClassLoader().getResources("log4j2.xml");
+        while (log4j2_xml_urls.hasMoreElements()) {
+            URL log4j2_xml_url = log4j2_xml_urls.nextElement();
+            //Case 1: log4j2 as simple file
+            if (log4j2_xml_url.getProtocol().equals("file")) {
+                FileInputStream is = new FileInputStream(log4j2_xml_url.getPath());
+                while (is.available() > 0) {
+                    out.write(is.read());
+                }
+                is.close();
+                return;
+            }
+            if (log4j2_xml_url.getProtocol().equals("jar")) {
+                //Case 2: log4j2.xml included in a JAR
+                String path = log4j2_xml_url.getPath();
+                String jarFile = path.substring("file:".length(), path.indexOf("!"));
+                java.util.jar.JarFile jar = new java.util.jar.JarFile(jarFile);
+                Enumeration<JarEntry> enums = jar.entries();
+                while (enums.hasMoreElements()) {
+                    JarEntry file = enums.nextElement();
+                    if (!file.isDirectory() && file.getName().equals("log4j2.xml")) {
+                        InputStream is = jar.getInputStream(file); // get the input stream
+                        while (is.available() > 0) {
+                            out.write(is.read());
+                        }
+                        is.close();
+                        jar.close();
+                        return;
+                    }
+                }
+                jar.close();
+            }
+        }
+        throw new IOException("Failed to locate a log4j2.xml");
+    }
 
-  @SuppressWarnings("rawtypes")
-  static List<String> buildSupervisorCommands(Map conf) throws IOException {
-      List<String> toRet =
-              buildCommandPrefix(conf, backtype.storm.Config.NIMBUS_CHILDOPTS);
+    @SuppressWarnings("rawtypes")
+    private static List<String> buildCommandPrefix(Map conf, String childOptsKey)
+            throws IOException {
+        String stormHomePath = getStormHome();
+        List<String> toRet = new ArrayList<String>();
+        if (System.getenv("JAVA_HOME") != null)
+            toRet.add(System.getenv("JAVA_HOME") + "/bin/java");
+        else
+            toRet.add("java");
+        toRet.add("-server");
+        toRet.add("-Dstorm.home=" + stormHomePath);
+        toRet.add("-Djava.library.path=" + conf.get(org.apache.storm.Config.JAVA_LIBRARY_PATH));
+        toRet.add("-Dstorm.conf.file=" + new File(STORM_CONF_PATH_STRING).getName());
+        toRet.add("-cp");
+        toRet.add(buildClassPathArgument());
 
-      toRet.add("-Dstorm.log.dir="+ ApplicationConstants.LOG_DIR_EXPANSION_VAR);
-      toRet.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/supervisor.log");
-      toRet.add("backtype.storm.daemon.supervisor");
+        if (conf.containsKey(childOptsKey)
+                && conf.get(childOptsKey) != null) {
+            toRet.add((String) conf.get(childOptsKey));
+        }
 
-      return toRet;
-  }
+        return toRet;
+    }
+    @SuppressWarnings("rawtypes")
+    static List<String> buildUICommands(Map conf) throws IOException {
+        List<String> toRet =
+                buildCommandPrefix(conf, org.apache.storm.Config.UI_CHILDOPTS);
+        final String host = InetAddress.getLocalHost().getHostName();
+        toRet.add("-Dstorm.options=" + org.apache.storm.Config.NIMBUS_SEEDS + "=[\""+host+"\"]");
+        toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/ui.log");
+        toRet.add("org.apache.storm.ui.core");
+        return toRet;
+    }
 
-  private static String buildClassPathArgument() throws IOException {
-      List<String> paths = new ArrayList<String>();
-      paths.add(new File(STORM_CONF_PATH_STRING).getParent());
-      paths.add(getStormHome());
-      for (String jarPath : findAllJarsInPaths(getStormHome(), getStormHome() + File.separator + "lib")) {
-          paths.add(jarPath);
-      }
-      return Joiner.on(File.pathSeparatorChar).join(paths);
-  }
+    @SuppressWarnings("rawtypes")
+    static List<String> buildNimbusCommands(Map conf) throws IOException {
+        List<String> toRet =
+                buildCommandPrefix(conf, org.apache.storm.Config.NIMBUS_CHILDOPTS);
+
+        toRet.add("-Dlogfile.name=" + System.getenv("STORM_LOG_DIR") + "/nimbus.log");
+        toRet.add("org.apache.storm.daemon.nimbus");
+
+        return toRet;
+    }
+
+    @SuppressWarnings("rawtypes")
+    static List<String> buildSupervisorCommands(Map conf,String workingDirectory,String stormHomeInZip) throws IOException {
+        List<String> toRet =
+                buildCommandPrefix(conf, org.apache.storm.Config.NIMBUS_CHILDOPTS);
+
+        for(int i=0;i<toRet.size();i++){
+            if(toRet.get(i).contains("-Dstorm.home=")){
+                toRet.remove(i);
+                toRet.add("-Dstorm.home="+workingDirectory+"/storm/"+stormHomeInZip);
+            }
+        }
+        toRet.add("-Dstorm.log.dir="+ ApplicationConstants.LOG_DIR_EXPANSION_VAR);
+        toRet.add("-Dlogfile.name=" + ApplicationConstants.LOG_DIR_EXPANSION_VAR + "/supervisor.log");
+        toRet.add("org.apache.storm.daemon.supervisor");
+
+        return toRet;
+    }
+
+    private static String buildClassPathArgument() throws IOException {
+        List<String> paths = new ArrayList<String>();
+        paths.add(new File(STORM_CONF_PATH_STRING).getParent());
+        paths.add(getStormHome());
+        for (String jarPath : findAllJarsInPaths(getStormHome(), getStormHome() + File.separator + "lib")) {
+            paths.add(jarPath);
+        }
+        return Joiner.on(File.pathSeparatorChar).join(paths);
+    }
 
     private static interface FileVisitor {
         public void visit(File file);
     }
-  
+
     private static List<String> findAllJarsInPaths(String... pathStrs) {
         final LinkedHashSet<String> pathSet = new LinkedHashSet<String>();
 
@@ -333,13 +315,13 @@ class Util {
         }
     }
 
-  static String getApplicationHomeForId(String id) {
-      if (id.isEmpty()) {
-          throw new IllegalArgumentException(
-                  "The ID of the application cannot be empty.");
-      }
-      return ".storm" + Path.SEPARATOR + id;
-  }
+    static String getApplicationHomeForId(String id) {
+        if (id.isEmpty()) {
+            throw new IllegalArgumentException(
+                    "The ID of the application cannot be empty.");
+        }
+        return ".storm" + Path.SEPARATOR + id;
+    }
 
     /**
      * Returns a boolean to denote whether a cache file is visible to all(public)
@@ -393,16 +375,16 @@ class Util {
         }
         return true;
     }
-    
+
     static void redirectStreamAsync(final InputStream input, final PrintStream output) {
-      new Thread(new Runnable() {        
-          @Override
-          public void run() {
-              Scanner scanner = new Scanner(input);
-              while (scanner.hasNextLine()) {
-                  output.println(scanner.nextLine());
-              }
-          }
-      }).start();
-  }
+        new Thread(new Runnable() {
+            @Override
+            public void run() {
+                Scanner scanner = new Scanner(input);
+                while (scanner.hasNextLine()) {
+                    output.println(scanner.nextLine());
+                }
+            }
+        }).start();
+    }
 }

@@ -16,15 +16,18 @@
 
 package com.yahoo.storm.yarn;
 
+import org.apache.storm.security.auth.ThriftConnectionType;
+import org.apache.storm.utils.Utils;
+import org.yaml.snakeyaml.Yaml;
+
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.util.Map;
 
-import org.yaml.snakeyaml.Yaml;
 
-import backtype.storm.utils.Utils;
 
 public class Config {
+    final public static ThriftConnectionType MASTER_THRIFT_TYPE = ThriftConnectionType.DRPC;
     final public static String MASTER_DEFAULTS_CONFIG = "master_defaults.yaml";
     final public static String MASTER_CONFIG = "master.yaml";
     final public static String MASTER_HOST = "master.host";
@@ -36,19 +39,19 @@ public class Config {
     //# of milliseconds to wait for YARN report on Storm Master host/port
     final public static String YARN_REPORT_WAIT_MILLIS = "yarn.report.wait.millis";
     final public static String MASTER_HEARTBEAT_INTERVAL_MILLIS = "master.heartbeat.interval.millis";
-    
+
     @SuppressWarnings("rawtypes")
     static public Map readStormConfig() {
         return readStormConfig(null);
     }
-    
+
     @SuppressWarnings({ "rawtypes", "unchecked" })
     static Map readStormConfig(String stormYarnConfigPath) {
         //default configurations
         Map ret = Utils.readDefaultConfig();
         Map conf = Utils.findAndReadConfigFile(Config.MASTER_DEFAULTS_CONFIG);
         ret.putAll(conf);
-        
+
         //standard storm configuration
         String confFile = System.getProperty("storm.conf.file");
         Map storm_conf;
@@ -58,8 +61,8 @@ public class Config {
             storm_conf = Utils.findAndReadConfigFile(confFile, true);
         }
         ret.putAll(storm_conf);
-        
-        //configuration file per command parameter 
+
+        //configuration file per command parameter
         if (stormYarnConfigPath == null) {
             Map master_conf = Utils.findAndReadConfigFile(Config.MASTER_CONFIG, false);
             ret.putAll(master_conf);
@@ -79,7 +82,6 @@ public class Config {
 
         //other configuration settings via CLS opts per system property: storm.options
         ret.putAll(Utils.readCommandLineOpts());
-
         return ret;
     }
 

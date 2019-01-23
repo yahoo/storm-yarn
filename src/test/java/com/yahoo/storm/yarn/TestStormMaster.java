@@ -15,11 +15,8 @@
  */
 package com.yahoo.storm.yarn;
 
-import java.io.IOException;
-import java.util.Map;
-
+import com.yahoo.storm.yarn.generated.StormMaster;
 import junit.framework.Assert;
-
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -29,7 +26,8 @@ import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Test;
 
-import com.yahoo.storm.yarn.generated.StormMaster;
+import java.io.IOException;
+import java.util.Map;
 
 public class TestStormMaster {
 
@@ -48,7 +46,7 @@ public class TestStormMaster {
 
         //simple configuration
         final Map storm_conf = Config.readStormConfig("src/main/resources/master_defaults.yaml");
-        storm_conf.put(backtype.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
+        storm_conf.put(org.apache.storm.Config.STORM_ZOOKEEPER_PORT, zkServer.port());
         
         String storm_home = testConf.stormHomePath();
         if (storm_home == null) {

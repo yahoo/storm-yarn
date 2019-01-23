@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" monitorInterval="60">
+    <Properties>
+        <Property name="LOG_NAME">${sys:logfile.name}</Property>
+    </Properties>
+    <Appenders >
+		<RollingFile name="A1" fileName="${LOG_NAME}" filePattern="${LOG_NAME}.%i">
+			<PatternLayout>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss} %c{1} [%p] %m%n</pattern>
+            </PatternLayout>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+		</RollingFile>
+		<RollingFile name="ACCESS" fileName="access.log" filePattern="access.log.%i">
+			<PatternLayout>
+                <pattern>%d{yyyy-MM-dd HH:mm:ss} %c{1} [%p] %m%n</pattern>
+            </PatternLayout>
+            <Policies>
+                <SizeBasedTriggeringPolicy size="50MB"/>
+            </Policies>
+            <DefaultRolloverStrategy max="9"/>
+		</RollingFile>
+	</Appenders>
+	 <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="A1"/>
+        </Root>
+        <Logger name="org.apache.storm.security.auth.authorizer" additivity="false" level="INFO">
+    		<AppenderRef ref="ACCESS" />
+  		</Logger>
+
+    </Loggers>
+</Configuration>
