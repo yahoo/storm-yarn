@@ -65,7 +65,8 @@ public class TestConfig {
     void cleanup() {
         if (storm_conf_file != null) 
             deleteFolder(storm_conf_file.getParentFile());
-        deleteFolder(new File(storm_home));
+        if (storm_home != null) 
+            deleteFolder(new File(storm_home));
     }
 
     synchronized String stormHomePath() throws IOException {
